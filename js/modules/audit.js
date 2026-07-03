@@ -14,7 +14,7 @@ import {
 
 export async function renderAuditModule() {
   const main = document.getElementById("app-main");
-  const raw = await dbReadAll("audit_log");
+  const raw = await dbReadAll("audit_log", 500); // últimos 500 eventos
   const logs = sortBy(snapshotToArray(raw), "timestamp", "desc");
 
   main.innerHTML = `

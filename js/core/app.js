@@ -374,6 +374,9 @@ function renderHeader() {
 
   header.innerHTML = `
     <div class="header-left" style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">
+      <button id="btn-mobile-menu" aria-label="Abrir menu">
+        ${icon("menu", "icon icon-sm")}
+      </button>
       <nav class="header-breadcrumb" id="app-breadcrumb" aria-label="Caminho de navegação">
         <span class="breadcrumb-item current">Dashboard</span>
       </nav>
@@ -389,6 +392,27 @@ function renderHeader() {
       <div class="header-date">${formatDate(Date.now())}</div>
     </div>
   `;
+
+  // Mobile drawer — hambúrguer
+  document.getElementById("btn-mobile-menu")?.addEventListener("click", () => {
+    const sidebar = document.querySelector(".sidebar");
+    const overlay = document.getElementById("sidebar-overlay");
+    sidebar?.classList.toggle("mobile-open");
+    overlay?.classList.toggle("visible");
+  });
+
+  document.getElementById("sidebar-overlay")?.addEventListener("click", () => {
+    document.querySelector(".sidebar")?.classList.remove("mobile-open");
+    document.getElementById("sidebar-overlay")?.classList.remove("visible");
+  });
+
+  // Fechar sidebar ao navegar no mobile
+  document.querySelector(".sidebar-nav")?.addEventListener("click", (e) => {
+    if (e.target.closest("a, button") && window.innerWidth <= 768) {
+      document.querySelector(".sidebar")?.classList.remove("mobile-open");
+      document.getElementById("sidebar-overlay")?.classList.remove("visible");
+    }
+  });
 
   document.getElementById("btn-alerts")?.addEventListener("click", async () => {
     const alerts = await checkAllAlerts();

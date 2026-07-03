@@ -1,1 +1,23 @@
-node_modules
+node_modules/
+
+# Segurança — NUNCA commitar
+serviceAccountKey.json
+serviceAccountKey*.json
+.env
+.env.local
+.env.*.local
+firebase-admin-key.json
+
+# Logs e temporários
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Scripts de inicialização (contêm senhas nos exemplos)
+# scripts/init-user-rest.js  # descomente se quiser excluir
+
+# Backup de arquivos de editor
+*.bak
+*.swp
+*~

@@ -46,11 +46,14 @@ export async function dbCreate(path, data) {
 /**
  * Lê todos os registros de um caminho.
  * @param {string} path
+ * @param {number} [limit] - Máximo de registros (padrão: sem limite para coleções pequenas)
  * @returns {Promise<Object|null>}
  */
-export async function dbReadAll(path) {
+export async function dbReadAll(path, limit = null) {
   if (!isDbAvailable()) return null;
-  const snap = await get(ref(db, path));
+  const baseRef = ref(db, path);
+  const q = limit ? query(baseRef, limitToLast(limit)) : baseRef;
+  const snap = await get(q);
   return snap.exists() ? snap.val() : null;
 }
 

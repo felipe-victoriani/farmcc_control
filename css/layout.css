@@ -982,3 +982,166 @@
 .print-footer {
   display: none;
 }
+
+/* ============================================================
+   RESPONSIVIDADE MOBILE
+   ============================================================ */
+
+/* ── Overlay para fechar sidebar no mobile ── */
+#sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  z-index: 199;
+  backdrop-filter: blur(2px);
+}
+
+#sidebar-overlay.visible {
+  display: block;
+}
+
+/* ── Botão hambúrguer no header (só mobile) ── */
+#btn-mobile-menu {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  color: var(--color-text-2);
+  flex-shrink: 0;
+}
+
+#btn-mobile-menu:hover {
+  background: var(--color-surface-2);
+}
+#btn-mobile-menu svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* ── Tablet (≤ 1024px): sidebar sempre colapsada ── */
+@media (max-width: 1024px) {
+  :root {
+    --sidebar-width: 240px;
+    --sidebar-collapsed: 60px;
+  }
+}
+
+/* ── Mobile (≤ 768px): sidebar como drawer ── */
+@media (max-width: 768px) {
+  /* Grid vira 1 coluna — sem coluna de sidebar */
+  .app-layout {
+    grid-template-columns: 1fr !important;
+    grid-template-areas:
+      "header"
+      "main"
+      "footer";
+  }
+
+  /* Sidebar flutua como drawer */
+  .sidebar {
+    position: fixed !important;
+    left: 0;
+    top: 0;
+    height: 100vh;
+    width: var(--sidebar-width) !important;
+    transform: translateX(-100%);
+    transition:
+      transform var(--transition-base),
+      box-shadow var(--transition-base);
+    z-index: 200;
+  }
+
+  /* Sidebar aberta no mobile */
+  .sidebar.mobile-open {
+    transform: translateX(0);
+    box-shadow: 4px 0 32px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Estado colapsado NÃO se aplica no mobile — sidebar sempre expande como drawer */
+  .app-layout.sidebar-collapsed .sidebar {
+    width: var(--sidebar-width) !important;
+  }
+
+  .app-layout.sidebar-collapsed .nav-label,
+  .app-layout.sidebar-collapsed .nav-badge,
+  .app-layout.sidebar-collapsed .sidebar-logo-text,
+  .app-layout.sidebar-collapsed .user-info,
+  .app-layout.sidebar-collapsed .user-logout-btn {
+    opacity: 1 !important;
+    width: auto !important;
+    overflow: visible !important;
+  }
+
+  .app-layout.sidebar-collapsed .nav-item {
+    padding: 10px 12px !important;
+    justify-content: flex-start !important;
+    gap: 12px !important;
+  }
+
+  .app-layout.sidebar-collapsed .sidebar-user {
+    justify-content: flex-start !important;
+    padding: 10px 14px !important;
+  }
+
+  /* Hover-to-expand não se aplica no mobile */
+  .app-layout.sidebar-collapsed .sidebar:hover {
+    width: var(--sidebar-width) !important;
+  }
+
+  /* Botão hambúrguer visível no mobile */
+  #btn-mobile-menu {
+    display: flex;
+  }
+
+  /* Header sem padding lateral excessivo */
+  .app-header {
+    padding: 0 var(--space-md);
+  }
+
+  /* Data escondida no mobile para economizar espaço */
+  .header-date {
+    display: none;
+  }
+
+  /* Footer simplificado */
+  .app-footer {
+    padding: 0 var(--space-md);
+    font-size: 10px;
+  }
+
+  .app-footer span:not(:first-child) {
+    display: none;
+  }
+
+  /* Módulos com padding menor */
+  .module-section {
+    padding: var(--space-sm);
+  }
+}
+
+/* ── Smartphones pequenos (≤ 480px) ── */
+@media (max-width: 480px) {
+  .app-header {
+    padding: 0 var(--space-sm);
+  }
+
+  .header-breadcrumb {
+    font-size: 11px;
+  }
+
+  /* KPIs em coluna única */
+  .kpi-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: var(--space-xs) !important;
+  }
+
+  .kpi-value {
+    font-size: 18px !important;
+  }
+}
