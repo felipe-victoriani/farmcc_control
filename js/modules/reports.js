@@ -5,8 +5,7 @@
  * Validades, Perdas/Desvios, Trilha de Auditoria.
  */
 
-import { dbReadAll } from "../core/db.js";
-import { getSessionProfile } from "../core/auth.js";
+import { dbReadAll, dbRead } from "../core/db.js";
 import { showToast } from "../shared/notifications.js";
 import { icon } from "../shared/icons.js";
 import {
@@ -210,14 +209,38 @@ async function loadTabContent(tab) {
 }
 
 // ============================================================
+// HELPER: resolve nome e CRF do Farmacêutico RT
+// Prioridade: 1) settings.responsavelTecnico  2) usuário com role FARMACEUTICO_RT
+// ============================================================
+async function resolveRT() {
+  const [rawSettings, rawUsers] = await Promise.all([
+    dbRead("settings", "main").catch(() => ({})),
+    dbReadAll("users").catch(() => ({})),
+  ]);
+  const cfg = rawSettings || {};
+  if (cfg.responsavelTecnico) {
+    return { nome: cfg.responsavelTecnico, crf: cfg.crfNumero || "" };
+  }
+  const users = snapshotToArray(rawUsers || {});
+  const rtUser = users.find(
+    (u) => u.role === "FARMACEUTICO_RT" && u.ativo !== false,
+  );
+  if (rtUser) {
+    return { nome: rtUser.nome || "", crf: rtUser.crfNumero || "" };
+  }
+  return { nome: "", crf: "" };
+}
+
+// ============================================================
 // ABA 1: BALANÇO MENSAL (Port. 344/98 Art.58)
 // ============================================================
 
 async function renderBalanco(mes, ano) {
   const content = document.getElementById("report-content");
-  const [rawMeds, rawMovs] = await Promise.all([
+  const [rawMeds, rawMovs, rt] = await Promise.all([
     dbReadAll("medications"),
     dbReadAll("movements"),
+    resolveRT(),
   ]);
 
   const meds = snapshotToArray(rawMeds).filter(
@@ -228,8 +251,14 @@ async function renderBalanco(mes, ano) {
     return d && d.getMonth() + 1 === mes && d.getFullYear() === ano;
   });
 
-  const settings = { nomeInstituicao: "—", cnes: "—", nomeRT: "—", crf: "—" };
-  const prof = getSessionProfile();
+  const rawSettings =
+    (await dbRead("settings", "main").catch(() => ({}))) || {};
+  const settings = {
+    nomeInstituicao: rawSettings.institutionName || "—",
+    cnes: rawSettings.cnes || "—",
+    nomeRT: rt.nome || "—",
+    crf: rt.crf || "—",
+  };
   const dataAtual = formatDate(Date.now());
 
   const rows = meds
@@ -267,8 +296,8 @@ async function renderBalanco(mes, ano) {
         <div class="report-meta-grid">
           <div><span class="label">Instituição:</span> <strong>${escapeHtml(settings.nomeInstituicao)}</strong></div>
           <div><span class="label">CNES:</span> <strong>${escapeHtml(settings.cnes)}</strong></div>
-          <div><span class="label">Farmacêutico RT:</span> <strong>${escapeHtml(prof?.nome || settings.nomeRT)}</strong></div>
-          <div><span class="label">CRF:</span> <strong>${escapeHtml(prof?.crf || settings.crf)}</strong></div>
+          <div><span class="label">Farmacêutico RT:</span> <strong>${escapeHtml(settings.nomeRT)}</strong></div>
+          <div><span class="label">CRF:</span> <strong>${escapeHtml(settings.crf)}</strong></div>
           <div><span class="label">Emissão:</span> <strong>${dataAtual}</strong></div>
         </div>
       </div>
@@ -317,8 +346,8 @@ async function renderBalanco(mes, ano) {
           <div class="signature-block">
             <div class="signature-field"></div>
             <p>Farmacêutico Responsável Técnico</p>
-            <p>${escapeHtml(prof?.nome || "____________________________")}</p>
-            <p>CRF: ${escapeHtml(prof?.crf || "__________")}</p>
+            <p>${escapeHtml(settings.nomeRT !== "—" ? settings.nomeRT : "____________________________")}</p>
+            <p>CRF: ${escapeHtml(settings.crf !== "—" ? settings.crf : "__________")}</p>
           </div>
         </div>
       </div>
@@ -355,19 +384,24 @@ async function renderBSPO(trimestre, ano) {
     4: "15 de janeiro",
   }[trimestre];
 
-  const [rawMeds, rawMovs] = await Promise.all([
+  const [rawMeds, rawMovs, rt] = await Promise.all([
     dbReadAll("medications"),
     dbReadAll("movements"),
+    resolveRT(),
   ]);
+
   const meds = snapshotToArray(rawMeds).filter(
-    (m) => m.lista && !["normal", ""].includes(m.lista),
+    (m) => m.lista && !["", "normal"].includes(m.lista),
   );
   const movs = snapshotToArray(rawMovs).filter((m) => {
     const d = m.dataHora ? new Date(m.dataHora) : null;
     return d && d.getFullYear() === ano && meses.includes(d.getMonth() + 1);
   });
 
-  const prof = getSessionProfile();
+  const rawSettings =
+    (await dbRead("settings", "main").catch(() => ({}))) || {};
+  const nomeRT = rt.nome || "—";
+  const crfRT = rt.crf || "—";
 
   const rows = meds
     .map((med) => {
@@ -405,8 +439,8 @@ async function renderBSPO(trimestre, ano) {
           ${icon("alertTriangle", "icon icon-sm")} Prazo de entrega: até <strong>${prazoEntrega} de ${ano + (trimestre === 4 ? 1 : 0)}</strong> para o SNGPC / Vigilância Sanitária local.
         </div>
         <div class="report-meta-grid">
-          <div><span class="label">Farmacêutico RT:</span> <strong>${escapeHtml(prof?.nome || "—")}</strong></div>
-          <div><span class="label">CRF:</span> <strong>${escapeHtml(prof?.crfNumero || prof?.crf || "—")}</strong></div>
+          <div><span class="label">Farmacêutico RT:</span> <strong>${escapeHtml(nomeRT)}</strong></div>
+          <div><span class="label">CRF:</span> <strong>${escapeHtml(crfRT)}</strong></div>
           <div><span class="label">Período:</span> <strong>${nomeTrimestre} / ${ano}</strong></div>
           <div><span class="label">Emissão:</span> <strong>${formatDate(Date.now())}</strong></div>
         </div>
@@ -455,8 +489,8 @@ async function renderBSPO(trimestre, ano) {
           <div class="signature-block">
             <div class="signature-field"></div>
             <p>Farmacêutico Responsável Técnico</p>
-            <p>${escapeHtml(prof?.nome || "____________________________")}</p>
-            <p>CRF: ${escapeHtml(prof?.crfNumero || prof?.crf || "__________")}</p>
+            <p>${escapeHtml(nomeRT !== "—" ? nomeRT : "____________________________")}</p>
+            <p>CRF: ${escapeHtml(crfRT !== "—" ? crfRT : "__________")}</p>
           </div>
           <div class="signature-block">
             <div class="signature-field"></div>

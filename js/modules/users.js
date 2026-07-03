@@ -3,7 +3,14 @@
  * @description Módulo de Gerenciamento de Usuários — perfis e controle de acesso.
  */
 
-import { dbReadAll, dbCreate, dbUpdate, dbSet, auditLog } from "../core/db.js";
+import {
+  dbReadAll,
+  dbCreate,
+  dbUpdate,
+  dbSet,
+  dbDelete,
+  auditLog,
+} from "../core/db.js";
 import { getSessionProfile } from "../core/auth.js";
 import { showToast } from "../shared/notifications.js";
 import { icon } from "../shared/icons.js";
@@ -60,7 +67,7 @@ export async function renderUsersModule() {
       <div class="card-body p-0">
         <table class="data-table">
           <thead>
-            <tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>CRF</th><th>Status</th><th>Último Login</th><th class="text-right">Ações</th></tr>
+            <tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Conselho</th><th>Status</th><th>Último Login</th><th class="text-right">Ações</th></tr>
           </thead>
           <tbody>
             ${
@@ -70,7 +77,7 @@ export async function renderUsersModule() {
               <td>${escapeHtml(u.nome || "—")}</td>
               <td>${escapeHtml(u.email || "—")}</td>
               <td><span class="badge badge-neutral">${escapeHtml(labelRole(u.role))}</span></td>
-              <td>${escapeHtml(u.crfNumero || "—")}</td>
+              <td>${escapeHtml(u.crfNumero ? `CRF ${u.crfNumero}` : u.corenNumero ? `COREN ${u.corenNumero}` : u.crmNumero ? `CRM ${u.crmNumero}` : "—")}</td>
               <td><span class="badge ${u.ativo ? "badge-success" : "badge-neutral"}">${u.ativo ? "Ativo" : "Inativo"}</span></td>
               <td>${u.ultimoLogin ? formatDateTime(u.ultimoLogin) : "—"}</td>
               <td class="text-right">
@@ -78,6 +85,7 @@ export async function renderUsersModule() {
                 <button class="btn btn-icon btn-ghost" data-action="toggle-user" data-uid="${u.id}" data-ativo="${u.ativo}" title="${u.ativo ? "Desativar" : "Ativar"}">
                   ${icon(u.ativo ? "lock" : "unlock", "icon icon-sm")}
                 </button>
+                <button class="btn btn-icon btn-ghost text-danger" data-action="delete-user" data-uid="${u.id}" data-nome="${escapeHtml(u.nome || "")}" title="Excluir">${icon("trash2", "icon icon-sm")}</button>
               </td>
             </tr>`,
                 )
@@ -128,9 +136,19 @@ export async function renderUsersModule() {
               <option value="GESTOR">Gestor (somente leitura)</option>
             </select>
           </div>
-          <div class="form-group">
-            <label class="form-label" for="u-crf">CRF Nº</label>
-            <input type="text" id="u-crf" name="crfNumero" class="form-input" maxlength="20">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="u-crf">CRF Nº</label>
+              <input type="text" id="u-crf" name="crfNumero" class="form-input" maxlength="20" placeholder="Ex: SP-12345">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="u-coren">COREN Nº</label>
+              <input type="text" id="u-coren" name="corenNumero" class="form-input" maxlength="20" placeholder="Ex: SP-123456">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="u-crm">CRM Nº</label>
+              <input type="text" id="u-crm" name="crmNumero" class="form-input" maxlength="20" placeholder="Ex: SP-123456">
+            </div>
           </div>
           <div class="form-group">
             <div class="form-checkbox-group">
@@ -160,6 +178,8 @@ export async function renderUsersModule() {
       if (action === "edit-user") openUserModal(uid, users);
       if (action === "toggle-user")
         await toggleUser(uid, ativo === "true", users);
+      if (action === "delete-user")
+        await deleteUser(uid, btn.dataset.nome, users);
     });
 
   document
@@ -190,6 +210,8 @@ export async function renderUsersModule() {
         email,
         role: fd.get("role"),
         crfNumero: fd.get("crfNumero")?.trim() || "",
+        corenNumero: fd.get("corenNumero")?.trim() || "",
+        crmNumero: fd.get("crmNumero")?.trim() || "",
         ativo: fd.get("ativo") === "on",
       };
 
@@ -277,6 +299,8 @@ function openUserModal(uid, users) {
     document.getElementById("u-email").value = u.email || "";
     document.getElementById("u-role").value = u.role || "FARMACEUTICO";
     document.getElementById("u-crf").value = u.crfNumero || "";
+    document.getElementById("u-coren").value = u.corenNumero || "";
+    document.getElementById("u-crm").value = u.crmNumero || "";
     document.getElementById("u-ativo").checked = u.ativo !== false;
   } else {
     document.getElementById("modal-user-title").textContent = "Novo Usuário";
@@ -287,6 +311,31 @@ function openUserModal(uid, users) {
     document.getElementById("u-ativo").checked = true;
   }
   modal.showModal();
+}
+
+async function deleteUser(uid, nome, users) {
+  if (
+    !confirm(
+      `Excluir permanentemente o usuário "${nome}"?\n\nEsta ação não pode ser desfeita.`,
+    )
+  )
+    return;
+  const profile = getSessionProfile();
+  try {
+    await dbDelete("users", uid);
+    await auditLog({
+      uid: profile?.uid || "",
+      userName: profile?.nome || "",
+      action: "DELETE_USER",
+      module: "users",
+      recordId: uid,
+      details: nome,
+    });
+    showToast("success", "Usuário excluído.");
+    await renderUsersModule();
+  } catch (err) {
+    showToast("error", "Erro ao excluir", err.message);
+  }
 }
 
 async function toggleUser(uid, currentAtivo, users) {
