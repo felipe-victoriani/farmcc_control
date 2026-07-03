@@ -1,0 +1,740 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta
+      name="description"
+      content="FarmaCC Pro — Sistema de Gestão de Farmácia para Centro Cirúrgico"
+    />
+    <meta name="robots" content="noindex,nofollow" />
+    <!-- CSP básico -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.gstatic.com;
+             script-src 'self' 'unsafe-inline' https://www.gstatic.com https://www.googleapis.com https://*.firebaseio.com;
+             style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+             font-src 'self' https://fonts.gstatic.com;
+             img-src 'self' data:;
+             connect-src 'self' https://*.firebaseio.com wss://*.firebaseio.com https://*.googleapis.com https://*.gstatic.com;"
+    />
+
+    <title>FarmaCC Pro — Login</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <link rel="stylesheet" href="css/base.css" />
+    <link rel="stylesheet" href="css/animations.css" />
+    <link rel="stylesheet" href="css/components.css" />
+    <link rel="stylesheet" href="css/layout.css" />
+
+    <style>
+      /* Estilos específicos da página de login */
+      .login-page {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+
+      @media (max-width: 768px) {
+        .login-page {
+          grid-template-columns: 1fr;
+        }
+        .login-left {
+          display: none;
+        }
+      }
+
+      /* Painel esquerdo */
+      .login-left {
+        background: linear-gradient(
+          135deg,
+          var(--color-sidebar) 0%,
+          #0f172a 100%
+        );
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding: var(--space-12);
+        text-align: center;
+        color: #fff;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .login-left::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+      }
+
+      .login-brand {
+        position: relative;
+        margin-bottom: var(--space-12);
+      }
+
+      .login-brand-icon {
+        width: 72px;
+        height: 72px;
+        background: rgba(255, 255, 255, 0.12);
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto var(--space-4);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+      }
+
+      .login-brand-icon svg {
+        width: 36px;
+        height: 36px;
+        stroke: #fff;
+        stroke-width: 1.8;
+      }
+
+      .login-brand-name {
+        font-size: 2rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        color: #fff;
+      }
+
+      .login-brand-sub {
+        font-size: 0.875rem;
+        color: rgba(255, 255, 255, 0.6);
+        margin-top: var(--space-1);
+      }
+
+      .login-features {
+        list-style: none;
+        text-align: left;
+        max-width: 320px;
+        position: relative;
+      }
+
+      .login-features li {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-3);
+        padding: var(--space-3) 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: 0.875rem;
+        color: rgba(255, 255, 255, 0.85);
+      }
+
+      .login-features li:last-child {
+        border-bottom: none;
+      }
+
+      .login-feature-icon {
+        width: 32px;
+        height: 32px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .login-feature-icon svg {
+        width: 16px;
+        height: 16px;
+        stroke: rgba(255, 255, 255, 0.8);
+      }
+
+      .login-feature-text strong {
+        display: block;
+        font-weight: 600;
+        color: #fff;
+        margin-bottom: 2px;
+      }
+
+      .login-seals {
+        display: flex;
+        gap: var(--space-3);
+        flex-wrap: wrap;
+        justify-content: center;
+        margin-top: var(--space-8);
+        position: relative;
+      }
+
+      .login-seal {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: var(--radius-md);
+        padding: var(--space-2) var(--space-3);
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.7);
+        letter-spacing: 0.05em;
+      }
+
+      /* Painel direito */
+      .login-right {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding: var(--space-8);
+        background: var(--color-bg);
+      }
+
+      .login-form-wrapper {
+        width: 100%;
+        max-width: 400px;
+      }
+
+      .login-form-header {
+        margin-bottom: var(--space-8);
+      }
+
+      .login-form-title {
+        font-size: 1.75rem;
+        font-weight: 800;
+        color: var(--color-text);
+        letter-spacing: -0.03em;
+      }
+
+      .login-form-sub {
+        font-size: 0.875rem;
+        color: var(--color-text-secondary);
+        margin-top: var(--space-1);
+      }
+
+      .login-footer-lgpd {
+        margin-top: var(--space-6);
+        padding-top: var(--space-4);
+        border-top: 1px solid var(--color-border);
+        font-size: 0.75rem;
+        color: var(--color-text-muted);
+        text-align: center;
+        line-height: 1.5;
+      }
+
+      .login-footer-lgpd a {
+        color: var(--color-primary);
+      }
+
+      /* Botão com loading */
+      #btn-login.loading {
+        opacity: 0.7;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="login-page" id="login-page">
+      <!-- PAINEL ESQUERDO: Branding -->
+      <aside class="login-left" aria-hidden="true">
+        <div class="login-brand">
+          <div class="login-brand-icon">
+            <!-- Cruz farmacêutica -->
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke-width="1.5"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"
+              />
+            </svg>
+          </div>
+          <h1 class="login-brand-name">FarmaCC Pro</h1>
+          <p class="login-brand-sub">
+            Sistema de Gestão de Farmácia para Centro Cirúrgico
+          </p>
+        </div>
+
+        <ul class="login-features">
+          <li>
+            <div class="login-feature-icon">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke-width="1.5"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                />
+              </svg>
+            </div>
+            <div class="login-feature-text">
+              <strong>Port. 344/98 &amp; RDC 222/2018</strong>
+              Controle rigoroso de psicotrópicos, entorpecentes e resíduos
+              farmacêuticos conforme ANVISA.
+            </div>
+          </li>
+          <li>
+            <div class="login-feature-icon">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke-width="1.5"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+            </div>
+            <div class="login-feature-text">
+              <strong>Rastreabilidade Total</strong>
+              Vinculação de medicamentos a pacientes e procedimentos cirúrgicos
+              com trilha de auditoria completa.
+            </div>
+          </li>
+          <li>
+            <div class="login-feature-icon">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke-width="1.5"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                />
+              </svg>
+            </div>
+            <div class="login-feature-text">
+              <strong>LGPD Compliant</strong>
+              Controle de acesso por perfil, criptografia de dados e log de
+              todas as operações realizadas.
+            </div>
+          </li>
+        </ul>
+
+        <div class="login-seals">
+          <span class="login-seal">PORT. 344/98</span>
+          <span class="login-seal">RDC 222/2018</span>
+          <span class="login-seal">LGPD</span>
+          <span class="login-seal">RDC 204/17</span>
+        </div>
+      </aside>
+
+      <!-- PAINEL DIREITO: Formulário -->
+      <main class="login-right">
+        <div class="login-form-wrapper">
+          <div class="login-form-header">
+            <h2 class="login-form-title">Acesso ao Sistema</h2>
+            <p class="login-form-sub">
+              Restrito a profissionais autorizados pela instituição
+            </p>
+          </div>
+
+          <!-- Mensagem de erro global -->
+          <div
+            id="login-error"
+            class="alert alert-danger hidden"
+            role="alert"
+            aria-live="polite"
+          ></div>
+
+          <form id="form-login" novalidate autocomplete="off">
+            <div class="form-group">
+              <label class="form-label" for="login-email"
+                >E-mail institucional</label
+              >
+              <input
+                type="email"
+                id="login-email"
+                name="email"
+                class="form-input"
+                required
+                autocomplete="username"
+                placeholder="seu.email@instituicao.br"
+                aria-describedby="login-error"
+              />
+              <span class="form-error" id="err-login-email"></span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="login-password">
+                Senha
+                <button
+                  type="button"
+                  id="btn-forgot"
+                  class="btn btn-link btn-sm"
+                  style="float: right; margin-top: -2px"
+                >
+                  Esqueceu a senha?
+                </button>
+              </label>
+              <div class="input-group">
+                <input
+                  type="password"
+                  id="login-password"
+                  name="password"
+                  class="form-input"
+                  required
+                  autocomplete="current-password"
+                  placeholder="••••••••"
+                  minlength="6"
+                />
+                <button
+                  type="button"
+                  id="btn-toggle-pass"
+                  class="btn btn-secondary"
+                  aria-label="Mostrar/ocultar senha"
+                >
+                  <svg
+                    id="icon-eye"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke-width="1.5"
+                    stroke="currentColor"
+                    width="16"
+                    height="16"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                    />
+                  </svg>
+                  <svg
+                    id="icon-eye-off"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke-width="1.5"
+                    stroke="currentColor"
+                    width="16"
+                    height="16"
+                    style="display: none"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <span class="form-error" id="err-login-pass"></span>
+            </div>
+
+            <button type="submit" id="btn-login" class="btn btn-primary w-full">
+              <span id="btn-login-text">Entrar</span>
+              <svg
+                id="btn-login-spinner"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke-width="2"
+                stroke="currentColor"
+                width="16"
+                height="16"
+                style="display: none; animation: spin 1s linear infinite"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+            </button>
+          </form>
+
+          <p class="login-footer-lgpd">
+            Este sistema é de uso restrito. O acesso é monitorado e registrado
+            em conformidade com a
+            <strong>LGPD (Lei 13.709/2018)</strong>. Ao acessar, você confirma
+            estar autorizado e ciente das políticas de privacidade da
+            instituição.
+          </p>
+
+          <!-- Link para documentação técnica -->
+          <div
+            style="
+              margin-top: 16px;
+              padding-top: 14px;
+              border-top: 1px solid var(--color-border);
+              text-align: center;
+            "
+          >
+            <a
+              href="docs/documentacao-tecnica.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              style="
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                font-size: 12px;
+                color: var(--color-primary);
+                font-weight: 600;
+                text-decoration: none;
+              "
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                width="14"
+                height="14"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z"
+                />
+              </svg>
+              Documentação Técnica &amp; Compliance (PDF)
+            </a>
+            <span
+              style="margin: 0 8px; color: var(--color-text-3); font-size: 11px"
+              >·</span
+            >
+            <span style="font-size: 11px; color: var(--color-text-3)"
+              >Port. 344/98 · RDC 222/2018 · LGPD</span
+            >
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Modal: Esqueci minha senha -->
+    <dialog
+      id="modal-forgot"
+      class="modal"
+      aria-modal="true"
+      aria-labelledby="forgot-title"
+    >
+      <div class="modal-content modal-sm">
+        <div class="modal-header">
+          <h2 class="modal-title" id="forgot-title">Redefinir Senha</h2>
+          <button
+            class="btn btn-icon"
+            id="close-modal-forgot"
+            aria-label="Fechar"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke-width="1.5"
+              stroke="currentColor"
+              width="16"
+              height="16"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p class="text-sm text-muted mb-3">
+            Informe o e-mail associado à sua conta. Você receberá um link de
+            redefinição de senha.
+          </p>
+          <div
+            id="forgot-success"
+            class="alert alert-success hidden"
+            role="alert"
+          >
+            E-mail de redefinição enviado! Verifique sua caixa de entrada.
+          </div>
+          <div
+            id="forgot-error"
+            class="alert alert-danger hidden"
+            role="alert"
+          ></div>
+          <div class="form-group">
+            <label class="form-label" for="forgot-email">E-mail</label>
+            <input
+              type="email"
+              id="forgot-email"
+              class="form-input"
+              placeholder="seu.email@instituicao.br"
+              autocomplete="email"
+            />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancel-forgot">
+            Cancelar
+          </button>
+          <button type="button" class="btn btn-primary" id="btn-send-reset">
+            Enviar Link
+          </button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Toast container -->
+    <div
+      id="toast-container"
+      class="toast-container"
+      aria-live="polite"
+      aria-atomic="true"
+    ></div>
+
+    <script type="module">
+      import {
+        loginUser,
+        redirectIfAuthenticated,
+        resetPassword,
+      } from "./js/core/auth.js";
+
+      // Redirecionar se já autenticado
+      redirectIfAuthenticated();
+
+      const form = document.getElementById("form-login");
+      const errorDiv = document.getElementById("login-error");
+      const btnLogin = document.getElementById("btn-login");
+      const btnLoginText = document.getElementById("btn-login-text");
+      const btnSpinner = document.getElementById("btn-login-spinner");
+
+      // Toggle visibilidade da senha
+      document
+        .getElementById("btn-toggle-pass")
+        ?.addEventListener("click", () => {
+          const input = document.getElementById("login-password");
+          const eye = document.getElementById("icon-eye");
+          const eyeOff = document.getElementById("icon-eye-off");
+          const isPass = input.type === "password";
+          input.type = isPass ? "text" : "password";
+          eye.style.display = isPass ? "none" : "";
+          eyeOff.style.display = isPass ? "" : "none";
+        });
+
+      // Submit login
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        // Limpar erros
+        errorDiv.classList.add("hidden");
+        errorDiv.textContent = "";
+        document.getElementById("err-login-email").textContent = "";
+        document.getElementById("err-login-pass").textContent = "";
+
+        const email = document.getElementById("login-email").value.trim();
+        const password = document.getElementById("login-password").value;
+
+        // Validação local
+        if (!email) {
+          document.getElementById("err-login-email").textContent =
+            "Informe o e-mail.";
+          return;
+        }
+        if (!password || password.length < 6) {
+          document.getElementById("err-login-pass").textContent =
+            "Mínimo 6 caracteres.";
+          return;
+        }
+
+        // Loading
+        btnLogin.disabled = true;
+        btnLogin.classList.add("loading");
+        btnLoginText.textContent = "Entrando...";
+        btnSpinner.style.display = "";
+
+        const result = await loginUser(email, password);
+
+        if (result && (result.success || result.user)) {
+          window.location.href = "app.html";
+        } else {
+          btnLogin.disabled = false;
+          btnLogin.classList.remove("loading");
+          btnLoginText.textContent = "Entrar";
+          btnSpinner.style.display = "none";
+
+          errorDiv.textContent =
+            (result && result.error) || "Falha na autenticação.";
+          errorDiv.classList.remove("hidden");
+          // Shake na div
+          errorDiv.animate(
+            [
+              { transform: "translateX(-6px)" },
+              { transform: "translateX(6px)" },
+              { transform: "translateX(0)" },
+            ],
+            { duration: 300 },
+          );
+        }
+      });
+
+      // Modal esqueci senha
+      document.getElementById("btn-forgot")?.addEventListener("click", () => {
+        const email = document.getElementById("login-email").value.trim();
+        if (email) document.getElementById("forgot-email").value = email;
+        document.getElementById("forgot-success").classList.add("hidden");
+        document.getElementById("forgot-error").classList.add("hidden");
+        document.getElementById("modal-forgot").showModal();
+      });
+
+      document
+        .getElementById("close-modal-forgot")
+        ?.addEventListener("click", () =>
+          document.getElementById("modal-forgot").close(),
+        );
+      document
+        .getElementById("cancel-forgot")
+        ?.addEventListener("click", () =>
+          document.getElementById("modal-forgot").close(),
+        );
+
+      document
+        .getElementById("btn-send-reset")
+        ?.addEventListener("click", async () => {
+          const email = document.getElementById("forgot-email").value.trim();
+          const errEl = document.getElementById("forgot-error");
+          const okEl = document.getElementById("forgot-success");
+          errEl.classList.add("hidden");
+          okEl.classList.add("hidden");
+
+          if (!email) {
+            errEl.textContent = "Informe o e-mail.";
+            errEl.classList.remove("hidden");
+            return;
+          }
+
+          const btn = document.getElementById("btn-send-reset");
+          btn.disabled = true;
+          btn.textContent = "Enviando...";
+
+          const result = await resetPassword(email);
+          btn.disabled = false;
+          btn.textContent = "Enviar Link";
+
+          if (result.success) {
+            okEl.classList.remove("hidden");
+            setTimeout(
+              () => document.getElementById("modal-forgot").close(),
+              3000,
+            );
+          } else {
+            errEl.textContent = result.error || "Erro ao enviar.";
+            errEl.classList.remove("hidden");
+          }
+        });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,524 @@
+/* =============================================================
+   FarmaCC Pro — animations.css
+   Transições, micro-interações, skeleton loaders
+   ============================================================= */
+
+/* ---- Keyframes ---- */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(120%);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes modalEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes modalExit {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.94) translateY(-8px);
+  }
+}
+
+@keyframes panelSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes ringPop {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.15);
+  }
+  60% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes drawRing {
+  from {
+    stroke-dashoffset: 314;
+  }
+  to {
+    stroke-dashoffset: var(--ring-offset, 100);
+  }
+}
+
+@keyframes countUp {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---- Utilitários de animação ---- */
+.animate-spin {
+  animation: spin 0.8s linear infinite;
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-fade-in {
+  animation: fadeIn var(--transition-base) both;
+}
+
+.animate-slide-up {
+  animation: slideInUp var(--transition-base) both;
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft var(--transition-base) both;
+}
+
+/* ---- Skeleton loader ---- */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-2) 25%,
+    #eaecf0 50%,
+    var(--color-surface-2) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease infinite;
+  border-radius: var(--radius-sm);
+}
+
+.skeleton-text {
+  height: 14px;
+  margin-bottom: 8px;
+  border-radius: var(--radius-sm);
+}
+
+.skeleton-text.w-3-4 {
+  width: 75%;
+}
+.skeleton-text.w-1-2 {
+  width: 50%;
+}
+.skeleton-text.w-1-4 {
+  width: 25%;
+}
+.skeleton-text.w-full {
+  width: 100%;
+}
+
+.skeleton-circle {
+  border-radius: var(--radius-full);
+}
+
+.skeleton-title {
+  height: 20px;
+  width: 60%;
+  margin-bottom: 12px;
+}
+
+.skeleton-badge {
+  height: 22px;
+  width: 60px;
+  border-radius: var(--radius-full);
+}
+
+.skeleton-btn {
+  height: 36px;
+  width: 100px;
+  border-radius: var(--radius-md);
+}
+
+/* Linhas de tabela skeleton */
+.skeleton-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr 80px;
+  gap: 16px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--color-border);
+  align-items: center;
+}
+
+.skeleton-row:last-child {
+  border-bottom: none;
+}
+
+/* Cards skeleton */
+.skeleton-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  padding: var(--space-lg);
+}
+
+.skeleton-kpi {
+  height: 100px;
+}
+
+/* ---- Spinner de loading ---- */
+.spinner {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  animation: spin 0.7s linear infinite;
+}
+
+.spinner svg {
+  width: 100%;
+  height: 100%;
+}
+
+.spinner-md {
+  width: 24px;
+  height: 24px;
+}
+
+.spinner-lg {
+  width: 40px;
+  height: 40px;
+}
+
+/* ---- Loading overlay ---- */
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.9);
+  z-index: 50;
+  gap: var(--space-md);
+  border-radius: inherit;
+  backdrop-filter: blur(2px);
+}
+
+.loading-overlay p {
+  font-size: var(--text-sm);
+  color: var(--color-text-2);
+  font-weight: 500;
+}
+
+/* ---- Toast animations ---- */
+.toast {
+  animation: slideInRight 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.toast.removing {
+  animation: slideOutRight 200ms ease-in both;
+}
+
+/* ---- Modal dialog animations ---- */
+dialog[open] {
+  animation: modalEnter 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+dialog.closing {
+  animation: modalExit 180ms ease-in both;
+}
+
+/* ---- Nav item transition ---- */
+.nav-item {
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+/* ---- Hover em linhas de tabela ---- */
+tbody tr {
+  transition: background-color var(--transition-fast);
+}
+
+/* ---- Botões ---- */
+.btn {
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    color var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* ---- Input focus ---- */
+.form-input,
+.form-select,
+.form-textarea {
+  transition:
+    border-color var(--transition-base),
+    box-shadow var(--transition-base);
+}
+
+/* ---- Card hover ---- */
+.card {
+  transition:
+    box-shadow var(--transition-base),
+    transform var(--transition-base);
+}
+
+/* ---- Sidebar ---- */
+.sidebar {
+  transition: width var(--transition-slow) cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar .nav-label,
+.sidebar .nav-badge {
+  transition:
+    opacity var(--transition-base),
+    width var(--transition-base);
+}
+
+/* ---- Ring de conformidade ---- */
+.compliance-ring circle {
+  transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ---- Timeline ---- */
+.timeline-item {
+  animation: slideInLeft var(--transition-base) both;
+}
+
+.timeline-item:nth-child(1) {
+  animation-delay: 0ms;
+}
+.timeline-item:nth-child(2) {
+  animation-delay: 50ms;
+}
+.timeline-item:nth-child(3) {
+  animation-delay: 100ms;
+}
+.timeline-item:nth-child(4) {
+  animation-delay: 150ms;
+}
+.timeline-item:nth-child(5) {
+  animation-delay: 200ms;
+}
+.timeline-item:nth-child(6) {
+  animation-delay: 250ms;
+}
+
+/* ---- KPI cards entrada ---- */
+.kpi-card {
+  animation: slideInUp var(--transition-base) both;
+}
+
+.kpi-card:nth-child(1) {
+  animation-delay: 0ms;
+}
+.kpi-card:nth-child(2) {
+  animation-delay: 60ms;
+}
+.kpi-card:nth-child(3) {
+  animation-delay: 120ms;
+}
+.kpi-card:nth-child(4) {
+  animation-delay: 180ms;
+}
+
+/* ---- Número animado ---- */
+.kpi-value {
+  animation: countUp 400ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ---- Badge de alerta pulsante ---- */
+.badge-alert-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* ---- Sino de notificação ---- */
+.bell-icon.has-alert {
+  animation: ringPop 0.6s ease-in-out;
+}
+
+/* ---- Collapsible (details/summary) ---- */
+details summary {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+details summary::-webkit-details-marker {
+  display: none;
+}
+
+details summary .chevron {
+  transition: transform var(--transition-base);
+}
+
+details[open] summary .chevron {
+  transform: rotate(180deg);
+}
+
+/* ---- Anel SVG de conformidade (CSS draw) ---- */
+.ring-progress-circle {
+  stroke-dasharray: 314;
+  animation: drawRing 1.2s cubic-bezier(0.4, 0, 0.2, 1) 0.3s both;
+  transform-origin: center;
+  transform: rotate(-90deg);
+}
+
+/* ---- Módulo content entrada ---- */
+.module-content {
+  animation: fadeIn 180ms ease both;
+}
+
+/* ---- Tooltip ---- */
+[data-tooltip] {
+  position: relative;
+}
+
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-text);
+  color: var(--color-text-inv);
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  z-index: 200;
+}
+
+[data-tooltip]:hover::after {
+  opacity: 1;
+}
+
+/* ---- Prefers reduced motion ---- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta
+      name="description"
+      content="FarmaCC Pro — Sistema de Gestão de Farmácia para Centro Cirúrgico"
+    />
+    <meta name="robots" content="noindex,nofollow" />
+    <!-- CSP básico -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.gstatic.com;
+             script-src 'self' 'unsafe-inline' https://www.gstatic.com https://www.googleapis.com;
+             style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+             font-src 'self' https://fonts.gstatic.com;
+             connect-src 'self' https://*.firebaseio.com wss://*.firebaseio.com https://*.googleapis.com;"
+    />
+
+    <title>FarmaCC Pro — Conformidade</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/animations.css" />
+    <link rel="stylesheet" href="../css/components.css" />
+    <link rel="stylesheet" href="../css/layout.css" />
+    <link rel="stylesheet" href="../css/shell.css" />
+  </head>
+  <body data-default-route="conformidade">
+    <!-- Banner offline (fixo no topo) -->
+    <div id="offline-banner" class="hidden" role="status">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke-width="1.5"
+        stroke="currentColor"
+        width="16"
+        height="16"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"
+        />
+      </svg>
+      Sem conexão com a internet. Algumas funcionalidades podem estar
+      indisponíveis.
+    </div>
+
+    <!-- Toast container -->
+    <div
+      id="toast-container"
+      class="toast-container"
+      aria-live="polite"
+      aria-atomic="true"
+    ></div>
+
+    <!-- Tela de carregamento inicial -->
+    <div id="app-loading" role="status" aria-label="Carregando FarmaCC Pro">
+      <div class="loading-brand">
+        <div class="loading-brand-icon">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke-width="1.5"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z"
+            />
+          </svg>
+        </div>
+        <span class="loading-brand-name">FarmaCC Pro</span>
+      </div>
+      <div class="loading-spinner-bar">
+        <div class="loading-spinner-bar-inner"></div>
+      </div>
+      <p class="loading-text">Verificando autenticação...</p>
+    </div>
+
+    <!-- Layout principal da aplicação -->
+    <div class="app-layout">
+      <!-- Sidebar -->
+      <aside
+        id="app-sidebar"
+        class="app-sidebar sidebar"
+        role="complementary"
+        aria-label="Navegação lateral"
+      >
+        <!-- Preenchido dinamicamente por app.js -->
+      </aside>
+
+      <!-- Header -->
+      <header id="app-header" class="app-header" role="banner">
+        <!-- Preenchido dinamicamente por app.js -->
+      </header>
+
+      <!-- Main: área de conteúdo dinâmico -->
+      <main id="app-main" class="app-main" role="main" aria-live="polite">
+        <!-- Módulos são renderizados aqui via routeTo() -->
+      </main>
+
+      <!-- Footer -->
+      <footer id="app-footer" class="app-footer" role="contentinfo">
+        <!-- Preenchido dinamicamente por app.js -->
+      </footer>
+    </div>
+
+    <!-- Módulo de seed (disponível pelo console para demonstração) -->
+    <!-- Para popular dados: import('/js/seed.js').then(m => m.seedDatabase()) -->
+
+    <script src="../js/core/shell.js"></script>
+    <script type="module" src="../js/core/app.js"></script>
+  </body>
+</html>

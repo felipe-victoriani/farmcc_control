@@ -1,0 +1,9 @@
+{
+  "type": "module",
+  "dependencies": {
+    "firebase": "^12.15.0"
+  },
+  "devDependencies": {
+    "firebase-admin": "^14.1.0"
+  }
+}

@@ -1,0 +1,1755 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FarmaCC Pro — Documentação Técnica e Compliance</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap");
+
+      :root {
+        --blue: #2563eb;
+        --dark: #0f172a;
+        --gray: #64748b;
+        --light: #f8fafc;
+        --border: #e2e8f0;
+        --success: #059669;
+        --warning: #d97706;
+        --danger: #dc2626;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--dark);
+        background: #fff;
+        padding: 0;
+      }
+
+      /* ── Capa ── */
+      .cover {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        color: #fff;
+        padding: 60px 80px;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        page-break-after: always;
+      }
+
+      .cover-logo {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 80px;
+      }
+
+      .cover-logo-icon {
+        width: 56px;
+        height: 56px;
+        background: var(--blue);
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .cover-logo-icon svg {
+        width: 30px;
+        height: 30px;
+        stroke: #fff;
+      }
+
+      .cover-logo-name {
+        font-size: 22px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+      }
+
+      .cover-title {
+        font-size: 42px;
+        font-weight: 800;
+        line-height: 1.1;
+        margin-bottom: 16px;
+        letter-spacing: -0.03em;
+      }
+      .cover-subtitle {
+        font-size: 16px;
+        color: rgba(255, 255, 255, 0.65);
+        margin-bottom: 48px;
+      }
+
+      .cover-badges {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 60px;
+      }
+      .cover-badge {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 6px;
+        padding: 6px 14px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.85);
+      }
+
+      .cover-meta {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.5);
+      }
+      .cover-meta strong {
+        color: rgba(255, 255, 255, 0.8);
+      }
+
+      .cover-warning {
+        margin-top: 40px;
+        background: rgba(220, 38, 38, 0.15);
+        border: 1px solid rgba(220, 38, 38, 0.3);
+        border-radius: 8px;
+        padding: 16px 20px;
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.8);
+      }
+
+      /* ── Conteúdo ── */
+      .content {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 48px 60px;
+      }
+
+      /* ── Seções ── */
+      .section {
+        margin-bottom: 48px;
+        page-break-inside: avoid;
+      }
+
+      .section-num {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--blue);
+        margin-bottom: 4px;
+      }
+
+      h2 {
+        font-size: 20px;
+        font-weight: 800;
+        color: var(--dark);
+        letter-spacing: -0.02em;
+        margin-bottom: 16px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid var(--border);
+      }
+
+      h3 {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--dark);
+        margin: 20px 0 8px;
+      }
+
+      p {
+        margin-bottom: 10px;
+        color: #374151;
+      }
+
+      /* ── Tabelas ── */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 16px 0;
+        font-size: 12px;
+      }
+
+      thead {
+        background: #f1f5f9;
+      }
+
+      th {
+        padding: 8px 12px;
+        text-align: left;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--gray);
+        border-bottom: 2px solid var(--border);
+      }
+
+      td {
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--border);
+        vertical-align: top;
+      }
+
+      tr:last-child td {
+        border-bottom: none;
+      }
+      tr:nth-child(even) td {
+        background: #fafafa;
+      }
+
+      /* ── Badges ── */
+      .badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 700;
+      }
+
+      .badge-ok {
+        background: #dcfce7;
+        color: #166534;
+      }
+      .badge-partial {
+        background: #fef9c3;
+        color: #854d0e;
+      }
+      .badge-no {
+        background: #fee2e2;
+        color: #991b1b;
+      }
+      .badge-info {
+        background: #dbeafe;
+        color: #1e40af;
+      }
+      .badge-gray {
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+      }
+
+      /* ── Alertas ── */
+      .alert {
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin: 16px 0;
+        font-size: 12px;
+        display: flex;
+        gap: 10px;
+      }
+
+      .alert-icon {
+        font-size: 16px;
+        flex-shrink: 0;
+      }
+      .alert-info {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        color: #1e40af;
+      }
+      .alert-warning {
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        color: #92400e;
+      }
+      .alert-danger {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
+      }
+      .alert-success {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        color: #166534;
+      }
+
+      /* ── Checklist ── */
+      .checklist {
+        list-style: none;
+        padding: 0;
+      }
+
+      .checklist li {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 6px 0;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 12px;
+      }
+
+      .checklist li:last-child {
+        border-bottom: none;
+      }
+
+      .check-icon {
+        font-size: 14px;
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+
+      /* ── Code ── */
+      code {
+        background: #f8fafc;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 1px 6px;
+        font-family: "Courier New", monospace;
+        font-size: 11px;
+      }
+
+      pre {
+        background: #f8fafc;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 16px;
+        margin: 12px 0;
+        overflow-x: auto;
+        font-family: "Courier New", monospace;
+        font-size: 11px;
+        line-height: 1.6;
+      }
+
+      /* ── Rodapé de página ── */
+      .page-footer {
+        margin-top: 60px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        font-size: 11px;
+        color: var(--gray);
+      }
+
+      /* ── Score ── */
+      .score-card {
+        background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+        border: 2px solid #86efac;
+        border-radius: 12px;
+        padding: 24px;
+        text-align: center;
+        margin: 20px 0;
+      }
+
+      .score-num {
+        font-size: 48px;
+        font-weight: 800;
+        color: var(--success);
+      }
+      .score-label {
+        font-size: 14px;
+        color: #166534;
+        font-weight: 600;
+      }
+
+      /* ── Separador de capítulo ── */
+      .chapter-break {
+        page-break-before: always;
+        padding-top: 20px;
+      }
+
+      /* ── Impressão ── */
+      @media print {
+        body {
+          font-size: 12px;
+        }
+        .no-print {
+          display: none !important;
+        }
+        .cover {
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        thead {
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        .score-card {
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        .alert {
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        .badge {
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+      }
+
+      /* ── Botão de impressão ── */
+      .print-btn {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        background: var(--blue);
+        color: #fff;
+        border: none;
+        border-radius: 50px;
+        padding: 14px 24px;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        z-index: 100;
+      }
+
+      .print-btn:hover {
+        background: #1d4ed8;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Botão de impressão -->
+    <button class="print-btn no-print" onclick="window.print()">
+      🖨️ Salvar como PDF
+    </button>
+
+    <!-- ══════════════════════════════════════════════════════════
+     CAPA
+══════════════════════════════════════════════════════════ -->
+    <div class="cover">
+      <div>
+        <div class="cover-logo">
+          <div class="cover-logo-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke-width="1.8"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"
+              />
+            </svg>
+          </div>
+          <span class="cover-logo-name">FarmaCC Pro</span>
+        </div>
+
+        <div class="cover-title">
+          Documentação Técnica<br />& Compliance Regulatório
+        </div>
+        <div class="cover-subtitle">
+          Sistema de Gestão de Farmácia para Centro Cirúrgico
+        </div>
+
+        <div class="cover-badges">
+          <span class="cover-badge">Port. SVS/MS 344/98</span>
+          <span class="cover-badge">RDC 222/2018</span>
+          <span class="cover-badge">RDC 204/2017</span>
+          <span class="cover-badge">RDC 15/2012</span>
+          <span class="cover-badge">RDC 873/2024</span>
+          <span class="cover-badge">LGPD</span>
+          <span class="cover-badge">Firebase / Google Cloud</span>
+        </div>
+
+        <div class="cover-warning">
+          ⚠️ <strong>DOCUMENTO RESTRITO</strong> — Esta documentação contém
+          informações técnicas sobre a arquitetura e segurança do sistema.
+          Destinada exclusivamente ao Farmacêutico Responsável Técnico, equipe
+          técnica e Vigilância Sanitária em procedimentos de fiscalização.
+        </div>
+      </div>
+
+      <div class="cover-meta">
+        <strong>Versão:</strong> 1.0 &nbsp;·&nbsp; <strong>Data:</strong> Julho
+        de 2026 &nbsp;·&nbsp; <strong>Classificação:</strong> Confidencial / Uso
+        Interno
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════
+     CONTEÚDO
+══════════════════════════════════════════════════════════ -->
+    <div class="content">
+      <!-- SUMÁRIO -->
+      <div class="section">
+        <div class="section-num">Índice</div>
+        <h2>Sumário</h2>
+        <table>
+          <tbody>
+            <tr>
+              <td>1.</td>
+              <td>Identificação do Sistema</td>
+            </tr>
+            <tr>
+              <td>2.</td>
+              <td>Arquitetura Técnica</td>
+            </tr>
+            <tr>
+              <td>3.</td>
+              <td>Infraestrutura e Banco de Dados (Firebase)</td>
+            </tr>
+            <tr>
+              <td>4.</td>
+              <td>Política de Retenção e Backup de Dados</td>
+            </tr>
+            <tr>
+              <td>5.</td>
+              <td>Auditoria e Rastreabilidade</td>
+            </tr>
+            <tr>
+              <td>6.</td>
+              <td>Controle de Acesso e Autenticação</td>
+            </tr>
+            <tr>
+              <td>7.</td>
+              <td>Conformidade Regulatória — Perguntas Frequentes da VISA</td>
+            </tr>
+            <tr>
+              <td>8.</td>
+              <td>Matriz de Conformidade (Checklist ANVISA)</td>
+            </tr>
+            <tr>
+              <td>9.</td>
+              <td>Procedimentos de Emergência e Contingência</td>
+            </tr>
+            <tr>
+              <td>10.</td>
+              <td>Responsabilidades e Contatos</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- SEÇÃO 1 -->
+      <div class="section chapter-break">
+        <div class="section-num">Seção 1</div>
+        <h2>Identificação do Sistema</h2>
+
+        <table>
+          <tbody>
+            <tr>
+              <th style="width: 35%">Campo</th>
+              <th>Informação</th>
+            </tr>
+            <tr>
+              <td><strong>Nome do Sistema</strong></td>
+              <td>FarmaCC Pro</td>
+            </tr>
+            <tr>
+              <td><strong>Versão</strong></td>
+              <td>1.0</td>
+            </tr>
+            <tr>
+              <td><strong>Finalidade</strong></td>
+              <td>
+                Gestão de estoque farmacêutico, rastreabilidade de dispensação e
+                controle de resíduos em centro cirúrgico hospitalar
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Tipo de Aplicação</strong></td>
+              <td>
+                Sistema Web (SaaS) — acessível via navegador, sem instalação
+                local
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Tecnologia Front-End</strong></td>
+              <td>HTML5, CSS3, JavaScript (ES2022 Modules)</td>
+            </tr>
+            <tr>
+              <td><strong>Plataforma de Back-End</strong></td>
+              <td>Google Firebase (Authentication + Realtime Database)</td>
+            </tr>
+            <tr>
+              <td><strong>Hospedagem</strong></td>
+              <td>
+                Google Cloud Platform (Firebase Hosting) — Região: us-central1
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Navegadores Suportados</strong></td>
+              <td>
+                Google Chrome 110+, Microsoft Edge 110+, Firefox 110+, Safari
+                16+
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Certificação de Segurança</strong></td>
+              <td>
+                HTTPS obrigatório (TLS 1.3) — Firebase provê certificado SSL
+                automático (Let's Encrypt)
+              </td>
+            </tr>
+            <tr>
+              <td><strong>SLA de Disponibilidade</strong></td>
+              <td>
+                99,95% (Google Firebase SLA) —
+                <a href="https://firebase.google.com/terms/sla" target="_blank"
+                  >firebase.google.com/terms/sla</a
+                >
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- SEÇÃO 2 -->
+      <div class="section">
+        <div class="section-num">Seção 2</div>
+        <h2>Arquitetura Técnica</h2>
+
+        <h3>2.1 Visão Geral</h3>
+        <p>
+          O FarmaCC Pro é uma
+          <strong>Single Page Application (SPA)</strong> totalmente client-side,
+          com lógica de negócio no navegador e persistência de dados na nuvem
+          via Firebase.
+        </p>
+
+        <pre>
+Navegador (HTTPS)
+  ├── HTML/CSS/JS (Firebase Hosting ou servidor local)
+  ├── Firebase Authentication (login / controle de sessão)
+  └── Firebase Realtime Database (dados em tempo real)
+        ├── /users              → perfis de usuários
+        ├── /medications        → estoque de medicamentos
+        ├── /movements          → entradas, saídas, perdas, descartes
+        ├── /surgeries          → procedimentos cirúrgicos
+        ├── /residues           → descartes RDC 222/2018
+        ├── /instruments        → instrumentais (RDC 15/2012)
+        ├── /audit_log          → trilha de auditoria IMUTÁVEL
+        └── /settings           → configurações institucionais + permissões
+    </pre
+        >
+
+        <h3>2.2 Módulos do Sistema</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Módulo</th>
+              <th>Funcionalidade</th>
+              <th>Base Legal</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Estoque</td>
+              <td>CRUD de medicamentos com lote, validade, lista ANVISA</td>
+              <td>Port. 344/98</td>
+            </tr>
+            <tr>
+              <td>Movimentações</td>
+              <td>
+                Saídas (com SNCR), entradas, devoluções, perdas, descartes
+              </td>
+              <td>Port. 344/98 Art. 58</td>
+            </tr>
+            <tr>
+              <td>Pacientes</td>
+              <td>Registro de cirurgias vinculadas às dispensações</td>
+              <td>RDC 204/2017</td>
+            </tr>
+            <tr>
+              <td>Resíduos</td>
+              <td>Controle de MTR, empresa coletora, grupos B/D/E</td>
+              <td>RDC 222/2018</td>
+            </tr>
+            <tr>
+              <td>Instrumentais</td>
+              <td>
+                Ciclos de reprocessamento, esterilização, limite do fabricante
+              </td>
+              <td>RDC 15/2012</td>
+            </tr>
+            <tr>
+              <td>Relatórios</td>
+              <td>Balanço mensal + BSPO trimestral com assinatura do RT</td>
+              <td>Port. 344/98 Art. 58 + Anexo XX</td>
+            </tr>
+            <tr>
+              <td>Conformidade</td>
+              <td>
+                13 itens verificados automaticamente contra legislação vigente
+              </td>
+              <td>Múltiplas</td>
+            </tr>
+            <tr>
+              <td>Auditoria</td>
+              <td>Log imutável de todas as ações com usuário e timestamp</td>
+              <td>LGPD / RDC 204/2017</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- SEÇÃO 3 -->
+      <div class="section chapter-break">
+        <div class="section-num">Seção 3</div>
+        <h2>Infraestrutura e Banco de Dados (Firebase)</h2>
+
+        <h3>3.1 Firebase Realtime Database</h3>
+        <p>
+          O banco de dados utilizado é o
+          <strong>Firebase Realtime Database</strong>, um banco NoSQL em tempo
+          real hospedado pela Google Cloud Platform.
+        </p>
+
+        <table>
+          <tbody>
+            <tr>
+              <th style="width: 35%">Característica</th>
+              <th>Detalhe</th>
+            </tr>
+            <tr>
+              <td><strong>Tipo</strong></td>
+              <td>NoSQL — JSON hierárquico sincronizado em tempo real</td>
+            </tr>
+            <tr>
+              <td><strong>Provedor</strong></td>
+              <td>Google Firebase — Google LLC</td>
+            </tr>
+            <tr>
+              <td><strong>Região dos dados</strong></td>
+              <td>
+                us-central1 (Iowa, EUA) — dados armazenados em servidores Google
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Criptografia em repouso</strong></td>
+              <td>Sim — AES-256 (padrão Google Cloud)</td>
+            </tr>
+            <tr>
+              <td><strong>Criptografia em trânsito</strong></td>
+              <td>Sim — TLS 1.3 obrigatório</td>
+            </tr>
+            <tr>
+              <td><strong>Certificações do provedor</strong></td>
+              <td>ISO 27001, ISO 27017, ISO 27018, SOC 1/2/3, PCI DSS</td>
+            </tr>
+            <tr>
+              <td><strong>Conformidade com dados de saúde (EUA)</strong></td>
+              <td>HIPAA (mediante BAA com Google)</td>
+            </tr>
+            <tr>
+              <td><strong>URL do banco</strong></td>
+              <td>
+                <code>https://farmacia-cc-default-rtdb.firebaseio.com</code>
+              </td>
+            </tr>
+            <tr>
+              <td><strong>ID do Projeto Firebase</strong></td>
+              <td><code>farmacia-cc</code></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>3.2 Firebase Authentication</h3>
+        <p>
+          O controle de identidade dos usuários é gerenciado pelo
+          <strong>Firebase Authentication</strong>, que autentica via
+          e-mail/senha com tokens JWT.
+        </p>
+
+        <table>
+          <tbody>
+            <tr>
+              <td><strong>Método de autenticação</strong></td>
+              <td>E-mail + senha (hash bcrypt no servidor Google)</td>
+            </tr>
+            <tr>
+              <td><strong>Tokens</strong></td>
+              <td>
+                JSON Web Token (JWT) — expiração automática em 1 hora, renovação
+                automática
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Senhas</strong></td>
+              <td>
+                Nunca armazenadas em texto puro — hashing + salting no servidor
+                Firebase
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Proteção contra força bruta</strong></td>
+              <td>Bloqueio automático após 5 tentativas falhas (15 minutos)</td>
+            </tr>
+            <tr>
+              <td><strong>Recuperação de senha</strong></td>
+              <td>Via e-mail com link temporário (Firebase email link)</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>3.3 Regras de Segurança do Banco</h3>
+        <p>
+          O acesso ao banco é controlado por
+          <strong>Firebase Realtime Database Security Rules</strong> — regras
+          declarativas avaliadas no servidor, antes de qualquer acesso.
+        </p>
+
+        <div class="alert alert-success">
+          <span class="alert-icon">✅</span>
+          <div>
+            As regras de segurança garantem que
+            <strong>mesmo que um atacante obtenha um token de acesso</strong>,
+            ele só poderá ler/escrever os dados autorizados pelo seu perfil. A
+            proteção funciona independentemente da camada de apresentação
+            (front-end).
+          </div>
+        </div>
+
+        <p>Resumo das regras implementadas:</p>
+        <ul style="padding-left: 20px; font-size: 12px; line-height: 2">
+          <li>
+            <code>/users</code> — leitura permitida apenas para ADMIN e
+            FARMACEUTICO_RT; cada usuário pode ler seu próprio perfil
+          </li>
+          <li>
+            <code>/medications</code> — leitura para todos os usuários ativos;
+            escrita apenas para farmacêuticos e técnicos
+          </li>
+          <li>
+            <code>/movements</code> — leitura para todos; escrita para
+            farmacêuticos, técnicos, médicos e enfermeiros; delete apenas para
+            ADMIN/RT
+          </li>
+          <li>
+            <code>/audit_log</code> — leitura restrita; escrita somente com
+            inserção (<code>newData.exists() = true</code>),
+            <strong>deletar é proibido pelo banco</strong>
+          </li>
+          <li>
+            <code>/settings</code> — leitura geral; escrita apenas ADMIN/RT
+          </li>
+        </ul>
+      </div>
+
+      <!-- SEÇÃO 4 -->
+      <div class="section chapter-break">
+        <div class="section-num">Seção 4</div>
+        <h2>Política de Retenção e Backup de Dados</h2>
+
+        <div class="alert alert-warning">
+          <span class="alert-icon">⚠️</span>
+          <div>
+            <strong>Exigência legal:</strong> A Portaria SVS/MS nº 344/98 Art.
+            58 determina que os registros de substâncias controladas devem ser
+            conservados por <strong>no mínimo 5 (cinco) anos</strong>. O sistema
+            está configurado para nunca deletar automaticamente registros de
+            movimentações, auditoria e balanço.
+          </div>
+        </div>
+
+        <h3>4.1 Períodos de Retenção por Tipo de Dado</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Coleção</th>
+              <th>Tipo de dado</th>
+              <th>Retenção mínima</th>
+              <th>Base legal</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>/movements</code></td>
+              <td>Movimentações de medicamentos</td>
+              <td><strong>5 anos</strong></td>
+              <td>Port. 344/98 Art. 58</td>
+              <td>
+                <span class="badge badge-ok"
+                  >Nunca deletado automaticamente</span
+                >
+              </td>
+            </tr>
+            <tr>
+              <td><code>/audit_log</code></td>
+              <td>Trilha de auditoria</td>
+              <td><strong>5 anos</strong></td>
+              <td>LGPD / RDC 204/2017</td>
+              <td>
+                <span class="badge badge-ok">Imutável por regra do banco</span>
+              </td>
+            </tr>
+            <tr>
+              <td><code>/medications</code></td>
+              <td>Cadastro de medicamentos</td>
+              <td>Indefinido</td>
+              <td>Port. 344/98</td>
+              <td>
+                <span class="badge badge-ok">Mantido permanentemente</span>
+              </td>
+            </tr>
+            <tr>
+              <td><code>/residues</code></td>
+              <td>Registros de descarte</td>
+              <td><strong>5 anos</strong></td>
+              <td>RDC 222/2018 Art. 30</td>
+              <td>
+                <span class="badge badge-ok">Mantido permanentemente</span>
+              </td>
+            </tr>
+            <tr>
+              <td><code>/surgeries</code></td>
+              <td>Procedimentos cirúrgicos</td>
+              <td><strong>20 anos</strong></td>
+              <td>CFM / Lei 8.159/91</td>
+              <td>
+                <span class="badge badge-ok">Mantido permanentemente</span>
+              </td>
+            </tr>
+            <tr>
+              <td><code>/instruments</code></td>
+              <td>Instrumentais e ciclos</td>
+              <td><strong>5 anos</strong></td>
+              <td>RDC 15/2012</td>
+              <td>
+                <span class="badge badge-ok">Mantido permanentemente</span>
+              </td>
+            </tr>
+            <tr>
+              <td><code>/users</code></td>
+              <td>Perfis de usuários</td>
+              <td>Enquanto vigente + 2 anos</td>
+              <td>LGPD Art. 16</td>
+              <td>
+                <span class="badge badge-partial">Gerenciado pelo RT</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>4.2 Backup de Dados</h3>
+
+        <div class="alert alert-info">
+          <span class="alert-icon">ℹ️</span>
+          <div>
+            O Firebase Realtime Database realiza
+            <strong>backup automático interno</strong> gerenciado pela Google.
+            Os dados são replicados em múltiplos data centers geograficamente
+            distribuídos (alta disponibilidade). Adicionalmente, a instituição
+            deve realizar backups periódicos conforme política abaixo.
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Tipo de Backup</th>
+              <th>Frequência</th>
+              <th>Responsável</th>
+              <th>Formato</th>
+              <th>Retenção</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Backup Google (automático)</strong></td>
+              <td>Contínuo (replicação em tempo real)</td>
+              <td>Google LLC (Firebase)</td>
+              <td>Interno — não acessível diretamente</td>
+              <td>Conforme SLA Google</td>
+            </tr>
+            <tr>
+              <td><strong>Export manual</strong></td>
+              <td>Recomendado: mensal</td>
+              <td>ADMIN / Farmacêutico RT</td>
+              <td>JSON (Firebase Console → Export)</td>
+              <td>Mínimo 5 anos (HD externo / nuvem)</td>
+            </tr>
+            <tr>
+              <td><strong>Export CSV por módulo</strong></td>
+              <td>Recomendado: ao gerar relatório mensal</td>
+              <td>Farmacêutico RT</td>
+              <td>CSV (botão Exportar em cada módulo)</td>
+              <td>Arquivo físico: 5 anos</td>
+            </tr>
+            <tr>
+              <td><strong>Impressão de relatórios</strong></td>
+              <td>Mensal (balanço) / Trimestral (BSPO)</td>
+              <td>Farmacêutico RT</td>
+              <td>PDF / Papel (assinado)</td>
+              <td>5 anos em arquivo físico</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>4.3 Procedimento de Export Manual (Firebase Console)</h3>
+        <ol style="padding-left: 20px; font-size: 12px; line-height: 2.2">
+          <li>Acesse <strong>console.firebase.google.com</strong></li>
+          <li>Selecione o projeto <code>farmacia-cc</code></li>
+          <li>Navegue para <strong>Realtime Database → Data</strong></li>
+          <li>
+            Clique no ícone de <strong>⋮ (três pontos) → Export JSON</strong>
+          </li>
+          <li>
+            Salve o arquivo com nomenclatura:
+            <code>backup_farmacc_AAAAMM.json</code>
+          </li>
+          <li>Armazene em local seguro com controle de acesso</li>
+        </ol>
+
+        <h3>4.4 Recuperação de Dados (Disaster Recovery)</h3>
+        <p>Em caso de perda de acesso ou exclusão acidental de dados:</p>
+        <ul style="padding-left: 20px; font-size: 12px; line-height: 2">
+          <li>
+            Firebase suporta restauração via arquivo JSON exportado
+            anteriormente
+          </li>
+          <li>
+            Dados deletados por erro podem ser recuperados via suporte Google
+            (ponto-in-time recovery disponível no plano Blaze)
+          </li>
+          <li>
+            O <code>audit_log</code> é protegido contra deleção por regra de
+            banco — garantia adicional de integridade
+          </li>
+        </ul>
+      </div>
+
+      <!-- SEÇÃO 5 -->
+      <div class="section chapter-break">
+        <div class="section-num">Seção 5</div>
+        <h2>Auditoria e Rastreabilidade</h2>
+
+        <h3>5.1 Trilha de Auditoria (audit_log)</h3>
+        <p>
+          Todo evento sensível no sistema gera automaticamente um registro
+          imutável em <code>/audit_log</code>.
+        </p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Campo</th>
+              <th>Descrição</th>
+              <th>Exemplo</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>timestamp</code></td>
+              <td>Data/hora servidor (UTC) — Firebase serverTimestamp()</td>
+              <td>2026-07-02T14:35:22Z</td>
+            </tr>
+            <tr>
+              <td><code>uid</code></td>
+              <td>ID único do usuário autenticado (Firebase Auth UID)</td>
+              <td>F5YW6B0ZZ7eQ...</td>
+            </tr>
+            <tr>
+              <td><code>userName</code></td>
+              <td>Nome completo do usuário</td>
+              <td>Dr. João Silva</td>
+            </tr>
+            <tr>
+              <td><code>action</code></td>
+              <td>Tipo de ação realizada</td>
+              <td>MOVEMENT_SAIDA</td>
+            </tr>
+            <tr>
+              <td><code>module</code></td>
+              <td>Módulo onde a ação ocorreu</td>
+              <td>movements</td>
+            </tr>
+            <tr>
+              <td><code>recordId</code></td>
+              <td>ID do registro afetado</td>
+              <td>-NxYz123...</td>
+            </tr>
+            <tr>
+              <td><code>details</code></td>
+              <td>Descrição detalhada da ação</td>
+              <td>Saída: 2x Fentanila (A1). Protocolo: SAI-20260702-001</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>5.2 Ações Auditadas Automaticamente</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Ação</th>
+              <th>Código</th>
+              <th>Quem pode realizar</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Login no sistema</td>
+              <td><code>LOGIN</code></td>
+              <td>Todos</td>
+            </tr>
+            <tr>
+              <td>Logout</td>
+              <td><code>LOGOUT</code></td>
+              <td>Todos</td>
+            </tr>
+            <tr>
+              <td>Criar medicamento</td>
+              <td><code>CREATE_MEDICATION</code></td>
+              <td>Farm., Técnico</td>
+            </tr>
+            <tr>
+              <td>Editar medicamento</td>
+              <td><code>UPDATE_MEDICATION</code></td>
+              <td>Farm.</td>
+            </tr>
+            <tr>
+              <td>Excluir medicamento</td>
+              <td><code>DELETE_MEDICATION</code></td>
+              <td>Farm. RT apenas</td>
+            </tr>
+            <tr>
+              <td>Registrar saída</td>
+              <td><code>MOVEMENT_SAIDA</code></td>
+              <td>Farm., Técnico, Médico, Enfermeiro</td>
+            </tr>
+            <tr>
+              <td>Registrar entrada</td>
+              <td><code>MOVEMENT_ENTRADA</code></td>
+              <td>Farm., Técnico, Enfermeiro</td>
+            </tr>
+            <tr>
+              <td>Registrar perda/desvio</td>
+              <td><code>MOVEMENT_PERDA</code></td>
+              <td>Farm., Técnico, Enfermeiro</td>
+            </tr>
+            <tr>
+              <td>Cancelar movimentação</td>
+              <td><code>CANCEL_MOVEMENT</code></td>
+              <td>Farm. RT, Admin</td>
+            </tr>
+            <tr>
+              <td>Alerta de desvio controlado</td>
+              <td><code>ALERT_DESVIO_CONTROLADO</code></td>
+              <td>Sistema (automático)</td>
+            </tr>
+            <tr>
+              <td>Ciclo de esterilização</td>
+              <td><code>STERILIZATION_CYCLE</code></td>
+              <td>Farm., Técnico, Enfermeiro</td>
+            </tr>
+            <tr>
+              <td>Atualizar permissões</td>
+              <td><code>UPDATE_PERMISSIONS</code></td>
+              <td>Admin apenas</td>
+            </tr>
+            <tr>
+              <td>Criar/editar usuário</td>
+              <td><code>CREATE_USER / UPDATE_USER</code></td>
+              <td>Admin, Farm. RT</td>
+            </tr>
+            <tr>
+              <td>Ativar/desativar usuário</td>
+              <td><code>ACTIVATE_USER / DEACTIVATE_USER</code></td>
+              <td>Admin, Farm. RT</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>5.3 Imutabilidade dos Registros</h3>
+        <div class="alert alert-success">
+          <span class="alert-icon">🔒</span>
+          <div>
+            <strong>audit_log é tecnicamente imutável:</strong> A regra de
+            segurança do Firebase proíbe qualquer operação de deleção ou
+            atualização nesta coleção. A regra implementada é:
+            <code>".write": "auth != null && newData.exists()"</code> — só
+            permite inserção (quando o novo dado existe), nunca deleção (<code
+              >newData.exists() = false</code
+            >). Isso garante integridade da trilha mesmo que um usuário com
+            acesso administrativo ao console tente apagar registros.
+          </div>
+        </div>
+
+        <h3>5.4 Rastreabilidade de Medicamentos Controlados</h3>
+        <p>
+          O sistema implementa rastreabilidade completa da cadeia de custódia:
+        </p>
+        <pre>
+Medicamento cadastrado (lote + validade obrigatórios para listas A/B)
+  ↓
+Entrada registrada (NF + fornecedor)
+  ↓
+Cirurgia/paciente registrado (prontuário, cirurgião, anestesista)
+  ↓
+Saída dispensada (SNCR/Notificação obrigatório para listas A1/A2/A3/B1/B2)
+  ↓
+Auditoria gerada automaticamente (usuário + timestamp + detalhes)
+  ↓
+Relatório de Balanço / BSPO disponível para impressão (assinatura RT)
+    </pre
+        >
+      </div>
+
+      <!-- SEÇÃO 6 -->
+      <div class="section chapter-break">
+        <div class="section-num">Seção 6</div>
+        <h2>Controle de Acesso e Autenticação</h2>
+
+        <h3>6.1 Perfis de Usuário</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Perfil</th>
+              <th>Descrição</th>
+              <th>Nível de Acesso</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Administrador (ADMIN)</strong></td>
+              <td>Desenvolvedor / gestor do sistema</td>
+              <td>Total — inclui gerenciar usuários e permissões</td>
+            </tr>
+            <tr>
+              <td><strong>Farmacêutico RT</strong></td>
+              <td>Responsável Técnico pela farmácia</td>
+              <td>Total — único que emite balanço e assina relatórios</td>
+            </tr>
+            <tr>
+              <td><strong>Farmacêutico</strong></td>
+              <td>Farmacêutico auxiliar</td>
+              <td>Operacional + relatórios (sem gerenciar usuários)</td>
+            </tr>
+            <tr>
+              <td><strong>Técnico em Farmácia</strong></td>
+              <td>Técnico de nível médio</td>
+              <td>Operacional (sem excluir)</td>
+            </tr>
+            <tr>
+              <td><strong>Médico / Anestesista</strong></td>
+              <td>Médico que solicita medicamentos</td>
+              <td>Consulta estoque + registrar saída</td>
+            </tr>
+            <tr>
+              <td><strong>Enfermeiro RT</strong></td>
+              <td>Enfermeiro responsável no CC</td>
+              <td>Operacional completo (sem excluir)</td>
+            </tr>
+            <tr>
+              <td><strong>Gestor</strong></td>
+              <td>Gestor hospitalar</td>
+              <td>Somente leitura e relatórios</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>6.2 Princípio do Menor Privilégio</h3>
+        <p>
+          O sistema implementa o princípio do menor privilégio: cada usuário tem
+          acesso apenas às funcionalidades necessárias para seu papel. As
+          permissões são verificadas em duas camadas:
+        </p>
+        <ul style="padding-left: 20px; font-size: 12px; line-height: 2">
+          <li>
+            <strong>Camada 1 — Front-end:</strong> Botões e menus são ocultados
+            para usuários sem permissão
+          </li>
+          <li>
+            <strong>Camada 2 — Firebase Rules (servidor):</strong> Mesmo que o
+            front-end seja bypassado, o servidor rejeita a operação
+          </li>
+        </ul>
+
+        <h3>6.3 Proteção contra Acesso Não Autorizado</h3>
+        <table>
+          <tbody>
+            <tr>
+              <td><strong>Sessão inativa</strong></td>
+              <td>
+                Timer de inatividade: logout automático após período
+                configurável
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Tentativas de login</strong></td>
+              <td>Bloqueio após 5 tentativas incorretas (15 minutos)</td>
+            </tr>
+            <tr>
+              <td><strong>Tokens JWT</strong></td>
+              <td>
+                Expiração automática a cada 1 hora (renovação transparente)
+              </td>
+            </tr>
+            <tr>
+              <td><strong>HTTPS obrigatório</strong></td>
+              <td>Toda comunicação é criptografada (TLS 1.3)</td>
+            </tr>
+            <tr>
+              <td><strong>Código de bypass removido</strong></td>
+              <td>Nenhum bypass de autenticação no código de produção</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- SEÇÃO 7 -->
+      <div class="section chapter-break">
+        <div class="section-num">Seção 7</div>
+        <h2>Conformidade Regulatória — Perguntas Frequentes da VISA</h2>
+
+        <p>
+          Esta seção responde objetivamente às perguntas mais comuns feitas por
+          fiscais da Vigilância Sanitária durante inspeções de farmácias
+          hospitalares.
+        </p>
+
+        <h3>7.1 Perguntas sobre Controle de Substâncias (Port. 344/98)</h3>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 45%">Pergunta da Fiscalização</th>
+              <th>Resposta / Evidência no Sistema</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>O sistema diferencia medicamentos controlados dos demais?</td>
+              <td>
+                ✅ Sim. Campo <em>Lista</em> obrigatório: A1, A2, A3, B1, B2,
+                C1-C5, D1 ou Não Controlado. Badges visuais distintos em toda a
+                interface.
+              </td>
+            </tr>
+            <tr>
+              <td>Como é registrada a saída de um controlado?</td>
+              <td>
+                ✅ Cada saída exige: medicamento, quantidade, paciente,
+                prontuário, médico, CRM e
+                <strong>Nº de Notificação/SNCR obrigatório</strong> para listas
+                A1/A2/A3/B1/B2 (RDC 873/2024).
+              </td>
+            </tr>
+            <tr>
+              <td>O sistema impede a saída de medicamento vencido?</td>
+              <td>
+                ✅ Sim. O sistema verifica a validade no momento do registro. Se
+                o medicamento estiver vencido, a saída é
+                <strong>bloqueada</strong> com mensagem de erro citando Port.
+                344/98 Art. 57.
+              </td>
+            </tr>
+            <tr>
+              <td>Os registros de movimentação podem ser alterados?</td>
+              <td>
+                ✅ Não. Movimentações são imutáveis. Qualquer cancelamento é
+                registrado como <em>cancelamento lógico</em> (status: cancelado)
+                com motivo e responsável — o registro original permanece.
+              </td>
+            </tr>
+            <tr>
+              <td>Como é gerado o Balanço Mensal (Art. 58)?</td>
+              <td>
+                ✅ Menu <em>Relatórios → Balanço Mensal</em>. Gerado
+                automaticamente com entradas, saídas, perdas e saldo por
+                substância. Disponível para impressão com campo de assinatura do
+                RT.
+              </td>
+            </tr>
+            <tr>
+              <td>O sistema gera o BSPO Trimestral?</td>
+              <td>
+                ✅ Sim. Menu <em>Relatórios → BSPO Trimestral</em>. Selecionar
+                T1/T2/T3/T4 + ano. Inclui prazo legal de entrega e campos de
+                assinatura.
+              </td>
+            </tr>
+            <tr>
+              <td>Há registro de desvios/roubos?</td>
+              <td>
+                ✅ Sim. Campo <em>causa = desvio/roubo</em> no registro de
+                perda. O sistema exibe alerta obrigatório ao RT e cria registro
+                especial <code>ALERT_DESVIO_CONTROLADO</code> no audit_log.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>7.2 Perguntas sobre Resíduos (RDC 222/2018)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 45%">Pergunta da Fiscalização</th>
+              <th>Resposta / Evidência no Sistema</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Há registro de descarte de resíduos farmacêuticos?</td>
+              <td>
+                ✅ Módulo <em>Resíduos</em> com campos: data, grupo (B/D/E),
+                descrição, quantidade, empresa coletora e MTR.
+              </td>
+            </tr>
+            <tr>
+              <td>O MTR (Manifesto de Transporte) é registrado?</td>
+              <td>
+                ✅ Sim. Campo <em>Número MTR</em> obrigatório para descartes.
+                Ausência de MTR é sinalizada no módulo de Conformidade.
+              </td>
+            </tr>
+            <tr>
+              <td>Há verificação da empresa coletora?</td>
+              <td>
+                ✅ Campos: razão social, CNPJ (com validação de formato) e
+                licença IBAMA.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>7.3 Perguntas sobre Reprocessamento (RDC 15/2012)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 45%">Pergunta da Fiscalização</th>
+              <th>Resposta / Evidência no Sistema</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>O sistema controla o número de reprocessamentos?</td>
+              <td>
+                ✅ Módulo <em>Instrumentais</em> com campo
+                <em>Ciclos Realizados / Ciclos Máximos</em>. Barra de progresso
+                visual. Alerta automático ao atingir limite do fabricante.
+              </td>
+            </tr>
+            <tr>
+              <td>Há registro de esterilização?</td>
+              <td>
+                ✅ Cada ciclo registra: data, método (autoclave, ETO, plasma
+                H₂O₂, etc.) e responsável.
+              </td>
+            </tr>
+            <tr>
+              <td>Como é tratado o instrumental que atingiu o limite?</td>
+              <td>
+                ✅ O sistema muda o status para
+                <em>Descartado</em> automaticamente ao atingir o limite e exibe
+                alerta ao usuário.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>7.4 Perguntas sobre Auditoria e LGPD</h3>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 45%">Pergunta da Fiscalização</th>
+              <th>Resposta / Evidência no Sistema</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>O sistema registra quem fez cada ação?</td>
+              <td>
+                ✅ Toda ação sensível é auditada com: UID do usuário, nome,
+                perfil, data/hora (servidor), módulo, ID do registro e detalhes.
+              </td>
+            </tr>
+            <tr>
+              <td>Os logs de auditoria podem ser alterados?</td>
+              <td>
+                ✅ Não. A coleção <code>audit_log</code> tem regra de banco que
+                <strong>proíbe deleção e atualização</strong> por qualquer
+                usuário, incluindo administradores.
+              </td>
+            </tr>
+            <tr>
+              <td>Por quanto tempo os logs são mantidos?</td>
+              <td>
+                ✅ Indefinidamente no banco (sem deleção automática). Política
+                recomendada: 5 anos conforme Port. 344/98. Exportação CSV
+                disponível para arquivo histórico.
+              </td>
+            </tr>
+            <tr>
+              <td>Dados de pacientes são protegidos (LGPD)?</td>
+              <td>
+                ✅ Acesso restrito por perfil. Dados criptografados em trânsito
+                e em repouso. Sem exposição em URLs. Consentimento implícito
+                pelo uso do prontuário hospitalar.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- SEÇÃO 8 -->
+      <div class="section chapter-break">
+        <div class="section-num">Seção 8</div>
+        <h2>Matriz de Conformidade (Checklist ANVISA)</h2>
+
+        <div class="score-card">
+          <div class="score-num">7,5 / 10</div>
+          <div class="score-label">
+            Nota de Maturidade de Compliance (pós-correções)
+          </div>
+        </div>
+
+        <ul class="checklist">
+          <li>
+            <span class="check-icon">✅</span>
+            <div>
+              <strong
+                >Medicamentos classificados por lista ANVISA (A1-C5)</strong
+              >
+              — campo obrigatório no cadastro
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">✅</span>
+            <div>
+              <strong>Lote e validade obrigatórios para controlados A/B</strong>
+              — validação no cadastro
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">✅</span>
+            <div>
+              <strong>Bloqueio de saída de medicamento vencido</strong> —
+              verificação em tempo real no registro de movimentação
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">✅</span>
+            <div>
+              <strong
+                >Campo SNCR/Notificação obrigatório para listas A e B</strong
+              >
+              — conforme RDC 873/2024
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">✅</span>
+            <div>
+              <strong>Movimentações imutáveis</strong> — cancelamento lógico em
+              vez de deleção física
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">✅</span>
+            <div>
+              <strong>Trilha de auditoria protegida por regra de banco</strong>
+              — imutável no Firebase
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">✅</span>
+            <div>
+              <strong>Balanço mensal e BSPO trimestral</strong> — relatório com
+              assinatura do RT
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">✅</span>
+            <div>
+              <strong>Rastreabilidade medicamento → paciente → cirurgia</strong>
+              — vínculo completo por prontuário
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">✅</span>
+            <div>
+              <strong>Controle de resíduos com MTR obrigatório</strong> — RDC
+              222/2018
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">✅</span>
+            <div>
+              <strong>Controle de ciclos de reprocessamento</strong> — RDC
+              15/2012, alerta ao atingir limite
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">✅</span>
+            <div>
+              <strong
+                >Alerta de desvio/roubo com notificação obrigatória</strong
+              >
+              — Port. 344/98 Art. 56
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">✅</span>
+            <div>
+              <strong>Controle de acesso por perfil (7 roles)</strong> —
+              princípio do menor privilégio
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">✅</span>
+            <div>
+              <strong>Autenticação segura</strong> — Firebase Auth, JWT,
+              bloqueio por tentativas
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">⚠️</span>
+            <div>
+              <strong>Backup manual</strong> — export JSON/CSV disponível;
+              backup automático agendado é responsabilidade da instituição
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">⚠️</span>
+            <div>
+              <strong>Registro de receituário eletrônico (SNCR)</strong> — campo
+              implementado, integração com sistema nacional do SNCR pendente
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">❌</span>
+            <div>
+              <strong>Assinatura digital qualificada</strong> — relatórios são
+              impressos para assinatura manuscrita; assinatura digital
+              ICP-Brasil não implementada
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <!-- SEÇÃO 9 -->
+      <div class="section chapter-break">
+        <div class="section-num">Seção 9</div>
+        <h2>Procedimentos de Emergência e Contingência</h2>
+
+        <h3>9.1 Falha de Conexão com Internet</h3>
+        <div class="alert alert-warning">
+          <span class="alert-icon">⚠️</span>
+          <div>
+            O Firebase Realtime Database <strong>mantém cache local</strong> no
+            navegador para leitura dos últimos dados carregados. Porém, novas
+            escritas (registros de saída, entrada) requerem conexão. Em caso de
+            falha, use o <strong>Registro Manual em papel</strong> e lance no
+            sistema quando a conexão for restabelecida.
+          </div>
+        </div>
+
+        <p><strong>Plano de contingência recomendado:</strong></p>
+        <ol style="padding-left: 20px; font-size: 12px; line-height: 2.2">
+          <li>
+            Manter bloco de formulários físicos de registro de dispensação
+          </li>
+          <li>
+            Ao retornar a conectividade, lançar todas as movimentações no
+            sistema na sequência correta
+          </li>
+          <li>
+            Registrar no campo <em>Justificativa</em> a data/hora real e o
+            motivo do lançamento retroativo
+          </li>
+        </ol>
+
+        <h3>9.2 Acesso de Emergência ao Console Firebase</h3>
+        <p>
+          Em caso de necessidade de recuperação de dados ou acesso
+          administrativo direto ao banco:
+        </p>
+        <ul style="padding-left: 20px; font-size: 12px; line-height: 2">
+          <li>URL: <code>console.firebase.google.com</code></li>
+          <li>Projeto: <code>farmacia-cc</code></li>
+          <li>
+            Acesso: conta Google vinculada ao projeto (responsabilidade do
+            Admin)
+          </li>
+          <li>
+            Nunca compartilhar credenciais do console com usuários do sistema
+          </li>
+        </ul>
+
+        <h3>9.3 Suspensão do Sistema</h3>
+        <p>Antes de suspender o uso do sistema, o Farmacêutico RT deve:</p>
+        <ol style="padding-left: 20px; font-size: 12px; line-height: 2.2">
+          <li>Exportar backup completo JSON do Firebase Console</li>
+          <li>Gerar e imprimir todos os Balanços Mensais e BSPO pendentes</li>
+          <li>Desativar todos os usuários ativos (módulo Usuários)</li>
+          <li>Guardar os arquivos exportados por no mínimo 5 anos</li>
+        </ol>
+      </div>
+
+      <!-- SEÇÃO 10 -->
+      <div class="section">
+        <div class="section-num">Seção 10</div>
+        <h2>Responsabilidades e Contatos</h2>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Responsabilidade</th>
+              <th>Cargo</th>
+              <th>Observação</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Gestão técnica do sistema</td>
+              <td>Administrador (ADMIN)</td>
+              <td>
+                Responsável por criar usuários, configurar permissões e realizar
+                backups
+              </td>
+            </tr>
+            <tr>
+              <td>Responsabilidade técnica farmacêutica</td>
+              <td>Farmacêutico RT</td>
+              <td>
+                Assina relatórios oficiais; responsável legal pelos registros
+                conforme Lei 5.991/73
+              </td>
+            </tr>
+            <tr>
+              <td>Suporte à infraestrutura</td>
+              <td>Google Firebase (Google LLC)</td>
+              <td>
+                SLA 99,95%; suporte em
+                <a href="https://firebase.google.com/support" target="_blank"
+                  >firebase.google.com/support</a
+                >
+              </td>
+            </tr>
+            <tr>
+              <td>Regulatório / Fiscalização</td>
+              <td>ANVISA / Vigilância Sanitária local</td>
+              <td>
+                Este documento está disponível para apresentação em inspeção
+                sanitária
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="alert alert-info" style="margin-top: 24px">
+          <span class="alert-icon">📋</span>
+          <div>
+            <strong>Para fiscalização:</strong> Em caso de inspeção sanitária,
+            este documento deve ser apresentado junto com: (1) Impressão do
+            último Balanço Mensal assinado pelo RT, (2) Lista de usuários ativos
+            com seus perfis de acesso, (3) Print ou export do audit_log do
+            período inspecionado. Todos disponíveis via menu
+            <em>Relatórios</em> e <em>Auditoria</em> do sistema.
+          </div>
+        </div>
+      </div>
+
+      <!-- RODAPÉ FINAL -->
+      <div class="page-footer">
+        <span>FarmaCC Pro — Documentação Técnica v1.0</span>
+        <span>Julho de 2026 · Uso Restrito / Confidencial</span>
+      </div>
+    </div>
+  </body>
+</html>
