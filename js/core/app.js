@@ -40,7 +40,7 @@ import { formatDate, escapeHtml } from "../shared/utils.js";
   try {
     const alerts = await checkAllAlerts();
     updateAlertBadges(alerts.total);
-    if (alerts.total > 0) showAlertsModal([...alerts.expiry, ...alerts.stock]);
+    if (alerts.total > 0) showAlertsModal(alerts);
   } catch {
     /* silencioso */
   }
@@ -416,7 +416,7 @@ function renderHeader() {
 
   document.getElementById("btn-alerts")?.addEventListener("click", async () => {
     const alerts = await checkAllAlerts();
-    showAlertsModal([...alerts.expiry, ...alerts.stock]);
+    showAlertsModal(alerts);
   });
 }
 

@@ -49,6 +49,9 @@ export async function renderMedicationsModule(filterLista = "") {
   const main = document.getElementById("app-main");
   if (!main) return;
 
+  // Guardar o filtro inicial da rota
+  initialRouteFilter = filterLista;
+
   main.innerHTML = buildMedicationsHTML();
   await loadMedications({ lista: filterLista });
   setupMedicationsListeners();
@@ -105,6 +108,8 @@ function buildMedicationsHTML() {
       <div class="filter-group">
         <select id="filter-lista" class="form-select">
           <option value="">Todas as Listas</option>
+          <option value="controlado">Todos os Controlados</option>
+          <option value="validade">Validades Próximas (≤90d)</option>
           <option value="A1">Lista A1 (Entorpecentes)</option>
           <option value="A2">Lista A2 (Entorpecentes Veterinários)</option>
           <option value="B1">Lista B1 (Psicotrópicos)</option>
@@ -311,6 +316,9 @@ function buildMedicationsHTML() {
 /** Cache de medicamentos carregados */
 let medsCache = [];
 
+/** Filtro inicial da rota (ex: 'controlado' quando acessa /controlados) */
+let initialRouteFilter = "";
+
 /**
  * Carrega e renderiza a lista de medicamentos com filtros aplicados.
  * @param {Object} [filters={}]
@@ -325,6 +333,11 @@ export async function loadMedications(filters = {}) {
 }
 
 function applyAndRenderFilters(filters = {}) {
+  // Atualizar os campos de filtro se forem passados via parâmetro (ANTES de ler)
+  if (filters.lista !== undefined && document.getElementById("filter-lista")) {
+    document.getElementById("filter-lista").value = filters.lista;
+  }
+
   const search = (
     document.getElementById("med-search")?.value ||
     filters.search ||
@@ -349,7 +362,25 @@ function applyAndRenderFilters(filters = {}) {
       !searchMatch(med.lote, search)
     )
       return false;
-    if (lista && med.lista !== lista) return false;
+
+    // Tratamento especial para filtros de rota
+    if (lista) {
+      if (lista === "controlado") {
+        // Filtrar apenas medicamentos controlados (Port. 344/98)
+        const medLista = med.lista || "normal";
+        if (!isControlado(medLista)) return false;
+      } else if (lista === "validade") {
+        // Filtrar apenas medicamentos com validade próxima ou vencidos (90 dias ou menos)
+        if (!med.validade) return false;
+        const dias = diasRestantes(med.validade);
+        if (dias > 90) return false;
+      } else {
+        // Filtrar por lista específica
+        const medLista = med.lista || "normal";
+        if (medLista !== lista) return false;
+      }
+    }
+
     if (status && med.status !== status) return false;
     if (categoria && med.categoria !== categoria) return false;
     if (estoque) {
@@ -588,7 +619,7 @@ async function saveMedication(formData, editId = null) {
     const data = {
       nome: formData.get("nome")?.trim(),
       dcb: formData.get("dcb")?.trim() || "",
-      lista: formData.get("lista"),
+      lista: formData.get("lista") || "normal", // Garantir valor padrão
       categoria: formData.get("categoria"),
       concentracao: formData.get("concentracao")?.trim() || "",
       apresentacao: formData.get("apresentacao")?.trim() || "",
@@ -629,7 +660,14 @@ async function saveMedication(formData, editId = null) {
     }
 
     document.getElementById("modal-medication").close();
-    await loadMedications();
+    // Reaplicar os filtros atuais após salvar
+    await loadMedications({
+      lista: document.getElementById("filter-lista")?.value || "",
+      search: document.getElementById("med-search")?.value || "",
+      status: document.getElementById("filter-status")?.value || "",
+      categoria: document.getElementById("filter-categoria")?.value || "",
+      estoque: document.getElementById("filter-estoque")?.value || "",
+    });
   } catch (err) {
     showToast("error", "Erro ao salvar", err.message);
   } finally {
@@ -676,11 +714,11 @@ function validateMedForm(formData) {
 
 export async function deleteMedication(medId) {
   const profile = getSessionProfile();
-  if (!profile || profile.role !== "FARMACEUTICO_RT") {
+  if (!profile || !["ADMIN", "FARMACEUTICO_RT"].includes(profile.role)) {
     showToast(
       "error",
       "Sem permissão",
-      "Apenas o Farmacêutico RT pode excluir medicamentos.",
+      "Apenas o Administrador ou Farmacêutico RT podem excluir medicamentos.",
     );
     return;
   }
@@ -704,7 +742,14 @@ export async function deleteMedication(medId) {
       details: `Medicamento excluído: ${med.nome}`,
     });
     showToast("success", "Medicamento excluído.", med.nome);
-    await loadMedications();
+    // Reaplicar os filtros atuais após excluir
+    await loadMedications({
+      lista: document.getElementById("filter-lista")?.value || "",
+      search: document.getElementById("med-search")?.value || "",
+      status: document.getElementById("filter-status")?.value || "",
+      categoria: document.getElementById("filter-categoria")?.value || "",
+      estoque: document.getElementById("filter-estoque")?.value || "",
+    });
   } catch (err) {
     showToast("error", "Erro ao excluir", err.message);
   }
@@ -877,7 +922,8 @@ function setupMedicationsListeners() {
     .getElementById("btn-clear-filters")
     ?.addEventListener("click", () => {
       document.getElementById("med-search").value = "";
-      document.getElementById("filter-lista").value = "";
+      // Manter o filtro inicial da rota (ex: 'controlado' se estiver na página de controlados)
+      document.getElementById("filter-lista").value = initialRouteFilter;
       document.getElementById("filter-status").value = "";
       document.getElementById("filter-categoria").value = "";
       document.getElementById("filter-estoque").value = "";

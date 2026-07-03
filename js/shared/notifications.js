@@ -207,17 +207,21 @@ export function updateAlertBadges(count) {
 
 /**
  * Exibe modal com alertas críticos na abertura do sistema.
- * @param {{expiry: Alert[], stock: Alert[]}} alerts
+ * @param {{expiry: Alert[], stock: Alert[], total: number}} alerts
  */
 export function showAlertsModal(alerts) {
+  // Garantir que alerts tenha a estrutura correta
+  if (!alerts || typeof alerts !== "object") {
+    console.error("showAlertsModal: alerts inválido", alerts);
+    return;
+  }
+
   const critical = [
-    ...alerts.expiry.filter(
+    ...(alerts.expiry || []).filter(
       (a) => a.severity === "critical" || a.severity === "urgent",
     ),
-    ...alerts.stock.filter((a) => a.severity === "critical"),
+    ...(alerts.stock || []).filter((a) => a.severity === "critical"),
   ];
-
-  if (!critical.length) return;
 
   // Remover modal anterior se existir
   const existing = document.getElementById("critical-alerts-modal");
@@ -229,60 +233,81 @@ export function showAlertsModal(alerts) {
   modal.setAttribute("aria-modal", "true");
   modal.setAttribute("aria-labelledby", "critical-alerts-title");
 
-  const rows = critical
-    .slice(0, 10)
-    .map((a) => {
-      if (a.type === "expiry") {
-        const label =
-          a.diasRestantes < 0
-            ? `<span class="badge badge-danger">Vencido há ${Math.abs(a.diasRestantes)}d</span>`
-            : `<span class="badge badge-warning">Vence em ${a.diasRestantes}d</span>`;
-        return `<tr>
-        <td>${escapeHtml(a.nome)}</td>
-        <td>${escapeHtml(a.lote)}</td>
-        <td>${label}</td>
-      </tr>`;
-      } else {
-        const label =
-          a.qtdAtual <= 0
-            ? `<span class="badge badge-danger">Sem estoque</span>`
-            : `<span class="badge badge-warning">Qtd: ${a.qtdAtual} (mín: ${a.qtdMinima})</span>`;
-        return `<tr>
-        <td>${escapeHtml(a.nome)}</td>
-        <td>—</td>
-        <td>${label}</td>
-      </tr>`;
-      }
-    })
-    .join("");
+  // Se não houver alertas críticos, mostrar mensagem positiva
+  if (!critical.length) {
+    modal.innerHTML = `
+      <div class="modal-content">
+        <div class="modal-header" style="background:var(--color-success-light)">
+          <h2 class="modal-title" id="critical-alerts-title" style="color:var(--color-success)">
+            ✓ Nenhum Alerta Crítico
+          </h2>
+        </div>
+        <div class="modal-body">
+          <p class="text-center text-muted">Tudo está sob controle! Não há alertas críticos no momento.</p>
+          ${alerts.total > 0 ? `<p class="text-center text-sm text-muted mt-2">Você tem ${alerts.total} alerta(s) de nível baixo. Consulte os módulos de Validades e Estoque para mais detalhes.</p>` : ""}
+        </div>
+        <div class="modal-footer">
+          <button id="close-critical-alerts" class="btn btn-primary">OK</button>
+        </div>
+      </div>
+    `;
+  } else {
+    // Mostrar alertas críticos
+    const rows = critical
+      .slice(0, 10)
+      .map((a) => {
+        if (a.type === "expiry") {
+          const label =
+            a.diasRestantes < 0
+              ? `<span class="badge badge-danger">Vencido há ${Math.abs(a.diasRestantes)}d</span>`
+              : `<span class="badge badge-warning">Vence em ${a.diasRestantes}d</span>`;
+          return `<tr>
+          <td>${escapeHtml(a.nome)}</td>
+          <td>${escapeHtml(a.lote)}</td>
+          <td>${label}</td>
+        </tr>`;
+        } else {
+          const label =
+            a.qtdAtual <= 0
+              ? `<span class="badge badge-danger">Sem estoque</span>`
+              : `<span class="badge badge-warning">Qtd: ${a.qtdAtual} (mín: ${a.qtdMinima})</span>`;
+          return `<tr>
+          <td>${escapeHtml(a.nome)}</td>
+          <td>—</td>
+          <td>${label}</td>
+        </tr>`;
+        }
+      })
+      .join("");
 
-  const more =
-    critical.length > 10
-      ? `<p class="text-sm text-muted mt-2">...e mais ${critical.length - 10} alertas. Consulte os módulos de Validades e Estoque.</p>`
-      : "";
+    const more =
+      critical.length > 10
+        ? `<p class="text-sm text-muted mt-2">...e mais ${critical.length - 10} alertas. Consulte os módulos de Validades e Estoque.</p>`
+        : "";
 
-  modal.innerHTML = `
-    <div class="modal-content modal-lg">
-      <div class="modal-header" style="background:var(--color-danger-light)">
-        <h2 class="modal-title" id="critical-alerts-title" style="color:var(--color-danger)">
-          ⚠ Alertas Críticos (${critical.length})
-        </h2>
+    modal.innerHTML = `
+      <div class="modal-content modal-lg">
+        <div class="modal-header" style="background:var(--color-danger-light)">
+          <h2 class="modal-title" id="critical-alerts-title" style="color:var(--color-danger)">
+            ⚠ Alertas Críticos (${critical.length})
+          </h2>
+        </div>
+        <div class="modal-body">
+          <p class="text-sm text-muted mb-3">Os itens abaixo requerem atenção imediata:</p>
+          <table class="data-table">
+            <thead>
+              <tr><th>Medicamento</th><th>Lote</th><th>Status</th></tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+          ${more}
+        </div>
+        <div class="modal-footer">
+          <button id="close-critical-alerts" class="btn btn-primary">Entendido — Vou verificar</button>
+        </div>
       </div>
-      <div class="modal-body">
-        <p class="text-sm text-muted mb-3">Os itens abaixo requerem atenção imediata:</p>
-        <table class="data-table">
-          <thead>
-            <tr><th>Medicamento</th><th>Lote</th><th>Status</th></tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-        ${more}
-      </div>
-      <div class="modal-footer">
-        <button id="close-critical-alerts" class="btn btn-primary">Entendido — Vou verificar</button>
-      </div>
-    </div>
-  `;
+    `;
+  }
 
   document.body.appendChild(modal);
   modal.showModal();
