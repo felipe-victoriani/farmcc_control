@@ -119,7 +119,11 @@ async function loadDashboardData() {
       dbReadAll("movements"),
     ]);
     const meds = snapshotToArray(rawMeds);
-    const movs = sortBy(snapshotToArray(rawMovs), "dataHora", "desc");
+    const movs = sortBy(
+      snapshotToArray(rawMovs).filter((m) => m.status !== "cancelado"),
+      "dataHora",
+      "desc",
+    );
 
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
@@ -184,12 +188,18 @@ async function loadDashboardData() {
       <ul class="alert-list">
         ${allAlerts
           .slice(0, 6)
-          .map(
-            (a) => `<li class="alert-list-item alert-list-${a.type}">
-          ${icon(a.type === "critical" ? "xCircle" : "alertTriangle", "icon icon-sm")}
-          <span>${escapeHtml(a.message)}</span>
-        </li>`,
-          )
+          .map((a) => {
+            const iconName =
+              a.severity === "critical" ? "xCircle" : "alertTriangle";
+            const message =
+              a.type === "expiry"
+                ? `${a.nome} ${a.diasRestantes < 0 ? `vencido há ${Math.abs(a.diasRestantes)} dia(s)` : `vence em ${a.diasRestantes} dia(s)`}`
+                : `${a.nome} ${a.qtdAtual <= 0 ? "sem estoque" : `estoque baixo (${a.qtdAtual}/${a.qtdMinima})`}`;
+            return `<li class="alert-list-item alert-list-${a.severity}">
+          ${icon(iconName, "icon icon-sm")}
+          <span>${escapeHtml(message)}</span>
+        </li>`;
+          })
           .join("")}
       </ul>
     `

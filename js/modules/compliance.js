@@ -150,7 +150,9 @@ async function buildChecklist() {
 
     // 4. Movimentações nos últimos 30 dias
     const rawMovs = await dbReadAll("movements");
-    const movs = snapshotToArray(rawMovs);
+    const movs = snapshotToArray(rawMovs).filter(
+      (m) => m.status !== "cancelado",
+    );
     const recentes = movs.filter(
       (m) =>
         m.dataHora && Date.now() - new Date(m.dataHora) < 30 * 86400 * 1000,

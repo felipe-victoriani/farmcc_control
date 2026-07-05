@@ -23,6 +23,8 @@ import {
   exportCSV,
   debounce,
   formatNumber,
+  badgeClassLista,
+  escapeHtml,
 } from "../shared/utils.js";
 
 // ============================================================
@@ -203,13 +205,18 @@ function buildPatientsHTML() {
     </div>
   </dialog>
 
-  <!-- Painel lateral: Medicamentos usados na cirurgia -->
-  <div id="surg-detail-panel" class="side-panel" role="complementary" aria-label="Detalhes da cirurgia">
+  <!-- Painel lateral: Prontuário da Cirurgia -->
+  <div id="surg-detail-panel" class="side-panel side-panel-wide" role="complementary" aria-label="Prontuário da cirurgia">
     <div class="side-panel-header">
-      <h3 class="side-panel-title">Medicamentos Utilizados</h3>
-      <button class="btn btn-icon" id="close-surg-panel" aria-label="Fechar">
-        ${icon("xClose", "icon icon-sm")}
-      </button>
+      <h3 class="side-panel-title">📋 Prontuário da Cirurgia</h3>
+      <div class="side-panel-actions">
+        <button class="btn btn-primary btn-sm" id="btn-print-prontuario" title="Imprimir prontuário">
+          ${icon("print", "icon icon-sm")} Imprimir
+        </button>
+        <button class="btn btn-icon" id="close-surg-panel" aria-label="Fechar">
+          ${icon("xClose", "icon icon-sm")}
+        </button>
+      </div>
     </div>
     <div id="surg-detail-content" class="side-panel-body"></div>
   </div>
@@ -456,8 +463,12 @@ async function saveSurgery(formData, editId = null) {
 
 async function deleteSurgery(id) {
   const profile = getSessionProfile();
-  if (!profile || profile.role !== "FARMACEUTICO_RT") {
-    showToast("error", "Sem permissão");
+  if (!profile || !["ADMIN", "FARMACEUTICO_RT"].includes(profile.role)) {
+    showToast(
+      "error",
+      "Sem permissão",
+      "Apenas ADMIN e Farmacêutico RT podem excluir cirurgias.",
+    );
     return;
   }
   if (!window.confirm("Confirma a exclusão desta cirurgia?")) return;
@@ -479,7 +490,7 @@ async function deleteSurgery(id) {
 }
 
 // ============================================================
-// PAINEL DE MEDICAMENTOS POR CIRURGIA / PRONTUÁRIO
+// PRONTUÁRIO COMPLETO DA CIRURGIA
 // ============================================================
 
 async function openSurgeryMedsPanel(surgId, prontuario) {
@@ -493,44 +504,496 @@ async function openSurgeryMedsPanel(surgId, prontuario) {
   overlay?.classList.remove("hidden");
 
   try {
-    const raw = await dbReadAll("movements");
-    const movs = snapshotToArray(raw)
-      .filter((m) => m.prontuario === prontuario || m.tipo === "saida")
-      .filter((m) => m.prontuario === prontuario)
-      .sort((a, b) => (b.dataHora || 0) - (a.dataHora || 0));
-
-    if (!movs.length) {
-      content.innerHTML =
-        '<p class="text-sm text-muted">Nenhum medicamento registrado para este prontuário.</p>';
+    // Buscar dados da cirurgia
+    const surgery = await dbRead("surgeries", surgId);
+    if (!surgery) {
+      content.innerHTML = '<p class="text-danger">Cirurgia não encontrada.</p>';
       return;
     }
+
+    // Buscar movimentações (medicamentos utilizados)
+    const raw = await dbReadAll("movements");
+    const movs = snapshotToArray(raw)
+      .filter((m) => m.prontuario === prontuario)
+      .filter((m) => m.status !== "cancelado")
+      .filter((m) => m.tipo === "saida") // Apenas saídas (uso cirúrgico)
+      .sort((a, b) => (a.dataHora || 0) - (b.dataHora || 0));
+
+    // Buscar configurações para cabeçalho
+    const settings = (await dbRead("settings", "main").catch(() => null)) || {};
 
     const totalItens = movs.reduce(
       (s, m) => s + (Number(m.quantidade) || 0),
       0,
     );
+    const controlados = movs.filter(
+      (m) => m.medicamentoLista && !["normal", ""].includes(m.medicamentoLista),
+    );
 
+    // Renderizar prontuário completo
     content.innerHTML = `
-      <p class="text-sm text-muted mb-3">Prontuário: <strong>${escapeHtml(prontuario)}</strong> — ${movs.length} registros — Total: ${formatNumber(totalItens)} itens</p>
-      <table class="data-table">
-        <thead><tr><th>Data/Hora</th><th>Medicamento</th><th>Qtd</th><th>Por</th></tr></thead>
-        <tbody>
-          ${movs
-            .map(
-              (m) => `<tr>
-            <td>${formatDateTime(m.dataHora)}</td>
-            <td>${escapeHtml(m.medicamentoNome || "—")}</td>
-            <td class="text-right">${formatNumber(m.quantidade)}</td>
-            <td>${escapeHtml(m.registradoPorNome || "—")}</td>
-          </tr>`,
-            )
-            .join("")}
-        </tbody>
-      </table>
+      <div class="prontuario-document" id="prontuario-printable">
+        <!-- Cabeçalho institucional -->
+        <div class="prontuario-header">
+          <div class="prontuario-logo">
+            <div style="width: 48px; height: 48px; background: #2563eb; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 24px;">
+              ⚕️
+            </div>
+          </div>
+          <div class="prontuario-institution">
+            <h2 class="prontuario-institution-name">${escapeHtml(settings.nomeInstituicao || "Centro Cirúrgico")}</h2>
+            <p class="prontuario-institution-info">
+              ${settings.cnpj ? `CNPJ: ${escapeHtml(settings.cnpj)} • ` : ""}
+              ${settings.endereco ? escapeHtml(settings.endereco) : ""}
+            </p>
+          </div>
+          <div class="prontuario-date">
+            <div class="text-sm text-muted">Emissão</div>
+            <div class="fw-600">${formatDate(Date.now())}</div>
+            <div class="text-sm">${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</div>
+          </div>
+        </div>
+
+        <div class="prontuario-title">
+          <h3>PRONTUÁRIO DE MEDICAMENTOS UTILIZADOS EM CIRURGIA</h3>
+          <div class="prontuario-number">Prontuário Nº ${escapeHtml(prontuario)}</div>
+        </div>
+
+        <!-- Dados do Paciente -->
+        <div class="prontuario-section">
+          <div class="prontuario-section-header">
+            <h4>👤 Dados do Paciente</h4>
+          </div>
+          <div class="prontuario-grid">
+            <div class="prontuario-field">
+              <label>Nome Completo</label>
+              <div class="prontuario-value">${escapeHtml(surgery.pacienteNome || "—")}</div>
+            </div>
+            <div class="prontuario-field">
+              <label>Nº Prontuário</label>
+              <div class="prontuario-value">${escapeHtml(surgery.prontuario || "—")}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dados da Cirurgia -->
+        <div class="prontuario-section">
+          <div class="prontuario-section-header">
+            <h4>🏥 Dados da Cirurgia</h4>
+          </div>
+          <div class="prontuario-grid">
+            <div class="prontuario-field">
+              <label>Tipo de Cirurgia</label>
+              <div class="prontuario-value">${escapeHtml(surgery.tipoCirurgia || "—")}</div>
+            </div>
+            <div class="prontuario-field">
+              <label>Data</label>
+              <div class="prontuario-value">${formatDate(surgery.data)}</div>
+            </div>
+            <div class="prontuario-field">
+              <label>Horário</label>
+              <div class="prontuario-value">${escapeHtml(surgery.hora || "—")}</div>
+            </div>
+            <div class="prontuario-field">
+              <label>Sala</label>
+              <div class="prontuario-value">${escapeHtml(surgery.sala || "—")}</div>
+            </div>
+            <div class="prontuario-field">
+              <label>Status</label>
+              <div class="prontuario-value">
+                <span class="badge ${surgery.status === "realizada" ? "badge-success" : surgery.status === "agendada" ? "badge-info" : "badge-neutral"}">
+                  ${labelStatus(surgery.status)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Equipe Médica -->
+        <div class="prontuario-section">
+          <div class="prontuario-section-header">
+            <h4>👥 Equipe Médica</h4>
+          </div>
+          <div class="prontuario-grid">
+            <div class="prontuario-field">
+              <label>Cirurgião</label>
+              <div class="prontuario-value">${escapeHtml(surgery.cirurgiao || "—")}</div>
+            </div>
+            <div class="prontuario-field">
+              <label>Anestesista</label>
+              <div class="prontuario-value">${escapeHtml(surgery.anestesista || "—")}</div>
+            </div>
+            <div class="prontuario-field">
+              <label>Tipo de Anestesia</label>
+              <div class="prontuario-value">${escapeHtml(labelTipoAnestesia(surgery.tipoAnestesia) || "—")}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Medicamentos Utilizados -->
+        <div class="prontuario-section">
+          <div class="prontuario-section-header">
+            <h4>💊 Medicamentos Utilizados</h4>
+            <div class="prontuario-section-meta">
+              ${movs.length} medicamento(s) • ${formatNumber(totalItens)} itens no total
+              ${controlados.length > 0 ? `• <span class="badge badge-danger badge-sm">${controlados.length} controlado(s)</span>` : ""}
+            </div>
+          </div>
+          
+          ${
+            movs.length === 0
+              ? '<p class="text-muted text-center py-3">Nenhum medicamento registrado para esta cirurgia.</p>'
+              : `<div class="prontuario-table-wrapper">
+              <table class="prontuario-table">
+                <thead>
+                  <tr>
+                    <th>Data/Hora</th>
+                    <th>Medicamento</th>
+                    <th>Lista</th>
+                    <th>Quantidade</th>
+                    <th>SNCR/Notificação</th>
+                    <th>Registrado Por</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${movs
+                    .map(
+                      (m) => `
+                    <tr ${m.medicamentoLista && !["normal", ""].includes(m.medicamentoLista) ? 'class="row-warning"' : ""}>
+                      <td class="text-nowrap">${formatDateTime(m.dataHora)}</td>
+                      <td class="fw-600">${escapeHtml(m.medicamentoNome || "—")}</td>
+                      <td>
+                        ${
+                          m.medicamentoLista &&
+                          !["normal", ""].includes(m.medicamentoLista)
+                            ? `<span class="badge ${badgeClassLista(m.medicamentoLista)} badge-sm">${m.medicamentoLista}</span>`
+                            : '<span class="text-muted">—</span>'
+                        }
+                      </td>
+                      <td class="text-right fw-600">${formatNumber(m.quantidade)}</td>
+                      <td class="text-sm">${escapeHtml(m.sncr || "—")}</td>
+                      <td class="text-sm">${escapeHtml(m.registradoPorNome || "—")}</td>
+                    </tr>
+                  `,
+                    )
+                    .join("")}
+                </tbody>
+              </table>
+            </div>`
+          }
+        </div>
+
+        <!-- Observações -->
+        ${
+          surgery.observacoes
+            ? `
+          <div class="prontuario-section">
+            <div class="prontuario-section-header">
+              <h4>📝 Observações</h4>
+            </div>
+            <div class="prontuario-obs">
+              ${escapeHtml(surgery.observacoes)}
+            </div>
+          </div>
+        `
+            : ""
+        }
+
+        <!-- Alertas Regulatórios -->
+        ${
+          controlados.length > 0
+            ? `
+          <div class="prontuario-alert">
+            <div class="prontuario-alert-icon" style="font-size: 24px;">⚠️</div>
+            <div>
+              <div class="fw-600 mb-1">Medicamentos Controlados Utilizados</div>
+              <p class="text-sm mb-0">
+                Esta cirurgia utilizou <strong>${controlados.length} medicamento(s) controlado(s)</strong> 
+                sujeito(s) à Portaria SVS/MS nº 344/98. O registro deve ser mantido por no mínimo 
+                <strong>2 anos</strong> para fins de fiscalização e auditoria.
+              </p>
+            </div>
+          </div>
+        `
+            : ""
+        }
+
+        <!-- Rodapé -->
+        <div class="prontuario-footer">
+          <div class="prontuario-footer-section">
+            <div class="prontuario-signature-line"></div>
+            <div class="text-center text-sm mt-2">
+              <div class="fw-600">${escapeHtml(surgery.anestesista || "Anestesista Responsável")}</div>
+              <div class="text-muted">Anestesista</div>
+            </div>
+          </div>
+          <div class="prontuario-footer-section">
+            <div class="prontuario-signature-line"></div>
+            <div class="text-center text-sm mt-2">
+              <div class="fw-600">${escapeHtml(surgery.cirurgiao || "Cirurgião Responsável")}</div>
+              <div class="text-muted">Cirurgião</div>
+            </div>
+          </div>
+          <div class="prontuario-footer-section">
+            <div class="prontuario-signature-line"></div>
+            <div class="text-center text-sm mt-2">
+              <div class="fw-600">Farmacêutico Responsável</div>
+              <div class="text-muted">CRF</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="prontuario-legal text-xs text-muted text-center mt-4">
+          Documento gerado pelo FarmaCC Pro • ${formatDateTime(Date.now())} • 
+          Em conformidade com Port. 344/98, RDC 873/2024 e RDC 204/2017
+        </div>
+      </div>
     `;
   } catch (err) {
-    content.innerHTML = `<p class="text-danger">Erro: ${escapeHtml(err.message)}</p>`;
+    content.innerHTML = `<p class="text-danger">Erro ao carregar prontuário: ${escapeHtml(err.message)}</p>`;
   }
+}
+
+function labelTipoAnestesia(tipo) {
+  const map = {
+    geral: "Anestesia Geral",
+    regional: "Anestesia Regional",
+    local: "Anestesia Local",
+    sedacao: "Sedação",
+    combinada: "Anestesia Combinada",
+  };
+  return map[tipo] || tipo || "—";
+}
+
+function printProntuario() {
+  const prontuario = document.getElementById("prontuario-printable");
+  if (!prontuario) {
+    showToast("warning", "Nada para imprimir", "Abra um prontuário primeiro.");
+    return;
+  }
+
+  const printWindow = window.open("", "_blank");
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+      <meta charset="UTF-8">
+      <title>Prontuário - Impressão</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+          font-family: 'Arial', sans-serif; 
+          font-size: 12px; 
+          line-height: 1.5;
+          color: #333;
+          padding: 20mm;
+        }
+        .prontuario-document { max-width: 100%; }
+        .prontuario-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding-bottom: 16px;
+          border-bottom: 2px solid #2563eb;
+          margin-bottom: 24px;
+        }
+        .prontuario-institution-name {
+          font-size: 18px;
+          font-weight: 700;
+          color: #1e40af;
+          margin-bottom: 4px;
+        }
+        .prontuario-institution-info {
+          font-size: 10px;
+          color: #666;
+        }
+        .prontuario-date {
+          text-align: right;
+          font-size: 10px;
+        }
+        .prontuario-title {
+          text-align: center;
+          margin-bottom: 24px;
+        }
+        .prontuario-title h3 {
+          font-size: 16px;
+          font-weight: 700;
+          color: #1e40af;
+          margin-bottom: 8px;
+        }
+        .prontuario-number {
+          font-size: 12px;
+          color: #666;
+          font-weight: 600;
+        }
+        .prontuario-section {
+          margin-bottom: 20px;
+          break-inside: avoid;
+        }
+        .prontuario-section-header {
+          background: #f1f5f9;
+          padding: 8px 12px;
+          border-left: 4px solid #2563eb;
+          margin-bottom: 12px;
+        }
+        .prontuario-section-header h4 {
+          font-size: 13px;
+          font-weight: 700;
+          color: #1e40af;
+        }
+        .prontuario-section-meta {
+          font-size: 10px;
+          color: #666;
+          margin-top: 4px;
+        }
+        .prontuario-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 12px;
+        }
+        .prontuario-field label {
+          font-size: 10px;
+          color: #666;
+          font-weight: 600;
+          display: block;
+          margin-bottom: 4px;
+        }
+        .prontuario-value {
+          font-size: 12px;
+          color: #000;
+          padding: 6px;
+          border-bottom: 1px solid #e2e8f0;
+        }
+        .prontuario-table-wrapper {
+          overflow: hidden;
+        }
+        .prontuario-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 10px;
+        }
+        .prontuario-table th {
+          background: #f8fafc;
+          padding: 8px;
+          text-align: left;
+          font-weight: 700;
+          border: 1px solid #e2e8f0;
+        }
+        .prontuario-table td {
+          padding: 6px 8px;
+          border: 1px solid #e2e8f0;
+        }
+        .prontuario-table .row-warning {
+          background: #fef3c7;
+        }
+        .prontuario-obs {
+          padding: 12px;
+          background: #f8fafc;
+          border-left: 4px solid #94a3b8;
+          font-size: 11px;
+        }
+        .prontuario-alert {
+          display: flex;
+          gap: 12px;
+          padding: 12px;
+          background: #fef3c7;
+          border: 1px solid #fbbf24;
+          border-radius: 4px;
+          margin: 20px 0;
+        }
+        .prontuario-footer {
+          display: flex;
+          justify-content: space-around;
+          gap: 20px;
+          margin-top: 40px;
+          break-inside: avoid;
+        }
+        .prontuario-footer-section {
+          flex: 1;
+        }
+        .prontuario-signature-line {
+          border-top: 1px solid #000;
+          margin-top: 40px;
+        }
+        .prontuario-legal {
+          text-align: center;
+          font-size: 9px;
+          color: #999;
+          margin-top: 20px;
+          padding-top: 12px;
+          border-top: 1px solid #e2e8f0;
+        }
+        .badge {
+          display: inline-block;
+          padding: 2px 6px;
+          font-size: 9px;
+          font-weight: 600;
+          border-radius: 3px;
+        }
+        .badge-success { background: #dcfce7; color: #166534; }
+        .badge-info { background: #dbeafe; color: #1e40af; }
+        .badge-danger { background: #fee2e2; color: #991b1b; }
+        .fw-600 { font-weight: 600; }
+        .text-muted { color: #666; }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .text-nowrap { white-space: nowrap; }
+        .text-sm { font-size: 10px; }
+        .text-xs { font-size: 9px; }
+        .mt-2 { margin-top: 8px; }
+        .mb-0 { margin-bottom: 0; }
+        .mb-1 { margin-bottom: 4px; }
+        .prontuario-logo {
+          width: 48px !important;
+          height: 48px !important;
+          flex-shrink: 0;
+        }
+        .prontuario-logo svg,
+        .prontuario-logo .icon {
+          width: 24px !important;
+          height: 24px !important;
+          max-width: 24px !important;
+          max-height: 24px !important;
+        }
+        svg {
+          max-width: 100%;
+          max-height: 100%;
+        }
+        .icon {
+          display: inline-block;
+          width: 1em;
+          height: 1em;
+        }
+        @media print {
+          body { padding: 0; }
+          .prontuario-section { page-break-inside: avoid; }
+          .prontuario-logo {
+            width: 48px !important;
+            height: 48px !important;
+          }
+          .prontuario-logo svg,
+          .prontuario-logo .icon {
+            width: 20px !important;
+            height: 20px !important;
+            max-width: 20px !important;
+            max-height: 20px !important;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      ${prontuario.outerHTML}
+      <script>
+        window.onload = function() {
+          window.print();
+          // Opcional: fechar após imprimir
+          // window.onafterprint = function() { window.close(); }
+        };
+      </script>
+    </body>
+    </html>
+  `);
+  printWindow.document.close();
 }
 
 // ============================================================
@@ -604,6 +1067,11 @@ function setupPatientsListeners() {
     document.getElementById("surg-detail-panel")?.classList.remove("open");
     document.getElementById("surg-panel-overlay")?.classList.add("hidden");
   });
+
+  document
+    .getElementById("btn-print-prontuario")
+    ?.addEventListener("click", printProntuario);
+
   document
     .getElementById("surg-panel-overlay")
     ?.addEventListener("click", () => {
@@ -653,14 +1121,4 @@ function labelStatus(s) {
 function setErr(id, msg) {
   const el = document.getElementById(id);
   if (el) el.textContent = msg;
-}
-
-function escapeHtml(str) {
-  if (!str) return "";
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
 }

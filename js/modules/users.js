@@ -50,6 +50,8 @@ export async function renderUsersModule() {
   const main = document.getElementById("app-main");
   const raw = await dbReadAll("users");
   const users = sortBy(snapshotToArray(raw), "nome");
+  const profile = getSessionProfile();
+  const isAdmin = profile && profile.role === "ADMIN";
 
   main.innerHTML = `
   <section class="module-section">
@@ -59,7 +61,7 @@ export async function renderUsersModule() {
         <p class="section-subtitle">Gerenciamento de acesso ao sistema</p>
       </div>
       <div class="section-actions">
-        <button class="btn btn-primary btn-sm" id="btn-new-user">${icon("plus", "icon icon-sm")} Novo Usuário</button>
+        ${isAdmin ? `<button class="btn btn-primary btn-sm" id="btn-new-user">${icon("plus", "icon icon-sm")} Novo Usuário</button>` : ""}
       </div>
     </div>
 
@@ -67,7 +69,7 @@ export async function renderUsersModule() {
       <div class="card-body p-0">
         <table class="data-table">
           <thead>
-            <tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Conselho</th><th>Status</th><th>Último Login</th><th class="text-right">Ações</th></tr>
+            <tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Conselho</th><th>Status</th><th>Último Login</th>${isAdmin ? '<th class="text-right">Ações</th>' : ""}</tr>
           </thead>
           <tbody>
             ${
@@ -80,17 +82,21 @@ export async function renderUsersModule() {
               <td>${escapeHtml(u.crfNumero ? `CRF ${u.crfNumero}` : u.corenNumero ? `COREN ${u.corenNumero}` : u.crmNumero ? `CRM ${u.crmNumero}` : "—")}</td>
               <td><span class="badge ${u.ativo ? "badge-success" : "badge-neutral"}">${u.ativo ? "Ativo" : "Inativo"}</span></td>
               <td>${u.ultimoLogin ? formatDateTime(u.ultimoLogin) : "—"}</td>
-              <td class="text-right">
+              ${
+                isAdmin
+                  ? `<td class="text-right">
                 <button class="btn btn-icon btn-ghost" data-action="edit-user" data-uid="${u.id}" title="Editar">${icon("edit", "icon icon-sm")}</button>
                 <button class="btn btn-icon btn-ghost" data-action="toggle-user" data-uid="${u.id}" data-ativo="${u.ativo}" title="${u.ativo ? "Desativar" : "Ativar"}">
                   ${icon(u.ativo ? "lock" : "unlock", "icon icon-sm")}
                 </button>
                 <button class="btn btn-icon btn-ghost text-danger" data-action="delete-user" data-uid="${u.id}" data-nome="${escapeHtml(u.nome || "")}" title="Excluir">${icon("trash2", "icon icon-sm")}</button>
-              </td>
+              </td>`
+                  : ""
+              }
             </tr>`,
                 )
                 .join("") ||
-              '<tr><td colspan="7" class="text-muted text-center">Nenhum usuário.</td></tr>'
+              `<tr><td colspan="${isAdmin ? 7 : 6}" class="text-muted text-center">Nenhum usuário.</td></tr>`
             }
           </tbody>
         </table>
@@ -282,6 +288,15 @@ async function createFirebaseAuthUser(email, password) {
 }
 
 function openUserModal(uid, users) {
+  const profile = getSessionProfile();
+  if (!profile || profile.role !== "ADMIN") {
+    showToast(
+      "error",
+      "Sem permissão",
+      "Apenas ADMIN pode criar ou editar usuários.",
+    );
+    return;
+  }
   const modal = document.getElementById("modal-user");
   if (!modal) return;
   document.getElementById("form-user").reset();
@@ -314,13 +329,17 @@ function openUserModal(uid, users) {
 }
 
 async function deleteUser(uid, nome, users) {
+  const profile = getSessionProfile();
+  if (!profile || profile.role !== "ADMIN") {
+    showToast("error", "Sem permissão", "Apenas ADMIN pode excluir usuários.");
+    return;
+  }
   if (
     !confirm(
       `Excluir permanentemente o usuário "${nome}"?\n\nEsta ação não pode ser desfeita.`,
     )
   )
     return;
-  const profile = getSessionProfile();
   try {
     await dbDelete("users", uid);
     await auditLog({
@@ -340,6 +359,14 @@ async function deleteUser(uid, nome, users) {
 
 async function toggleUser(uid, currentAtivo, users) {
   const profile = getSessionProfile();
+  if (!profile || profile.role !== "ADMIN") {
+    showToast(
+      "error",
+      "Sem permissão",
+      "Apenas ADMIN pode ativar/desativar usuários.",
+    );
+    return;
+  }
   try {
     await dbUpdate("users", uid, { ativo: !currentAtivo });
     await auditLog({

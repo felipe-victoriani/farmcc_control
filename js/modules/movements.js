@@ -24,6 +24,7 @@ import {
   formatNumber,
   textoDiasRestantes,
   diasRestantes,
+  escapeHtml,
 } from "../shared/utils.js";
 
 // ============================================================
@@ -166,19 +167,11 @@ function buildMovementsHTML() {
           <div class="alert alert-info mb-3" id="mov-alert-info"></div>
 
           <div class="form-grid form-grid-2">
-            <div class="form-group form-col-2">
-              <label class="form-label" for="mov-medicamento-id">Medicamento <span class="required">*</span></label>
-              <select id="mov-medicamento-id" name="medicamentoId" class="form-select" required>
-                <option value="">Carregando...</option>
-              </select>
-              <span class="form-error" id="err-mov-med"></span>
-              <div id="mov-stock-info" class="form-hint"></div>
-            </div>
-
             <div class="form-group">
-              <label class="form-label" for="mov-quantidade">Quantidade <span class="required">*</span></label>
-              <input type="number" id="mov-quantidade" name="quantidade" class="form-input" required min="1" step="1">
-              <span class="form-error" id="err-mov-qtd"></span>
+              <label class="form-label" for="mov-data-hora">Data e Hora da Movimentação <span class="required">*</span></label>
+              <input type="datetime-local" id="mov-data-hora" name="dataHora" class="form-input" required>
+              <span class="form-error" id="err-mov-data"></span>
+              <span class="form-hint text-sm text-muted">Informe quando a movimentação realmente ocorreu.</span>
             </div>
 
             <div class="form-group">
@@ -191,15 +184,54 @@ function buildMovementsHTML() {
               </div>
             </div>
 
+            <!-- LISTA DE MEDICAÇÕES (múltiplas) -->
+            <div class="form-group form-col-2">
+              <div class="mb-2" style="display: flex; justify-content: space-between; align-items: center;">
+                <label class="form-label">Medicações <span class="required">*</span></label>
+                <button type="button" class="btn btn-primary btn-sm" id="btn-add-medication-row">
+                  ${icon("plus", "icon icon-sm")} Adicionar Medicação
+                </button>
+              </div>
+              <div class="table-wrapper" style="max-height: 300px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: 4px;">
+                <table class="table table-sm">
+                  <thead>
+                    <tr>
+                      <th style="width: 50%;">Medicamento</th>
+                      <th style="width: 20%;">Quantidade</th>
+                      <th style="width: 20%;">Estoque</th>
+                      <th style="width: 10%;"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="medications-list-tbody">
+                    <!-- Linhas adicionadas dinamicamente -->
+                  </tbody>
+                </table>
+              </div>
+              <span class="form-error" id="err-mov-medications"></span>
+              <span class="form-hint text-sm text-muted">Adicione todas as medicações utilizadas nesta movimentação.</span>
+            </div>
+
             <!-- Campos de saída / uso cirúrgico -->
             <div id="mov-fields-saida" class="form-col-2 form-grid form-grid-2">
               <div class="form-group form-col-2">
-                <label class="form-label" for="mov-paciente-nome">Paciente</label>
-                <input type="text" id="mov-paciente-nome" name="pacienteNome" class="form-input" maxlength="200" placeholder="Nome completo do paciente">
+                <label class="form-label" for="mov-paciente-nome">
+                  Paciente
+                  <span class="badge badge-info badge-sm ml-1" title="Pacientes cadastrados disponíveis">📋</span>
+                </label>
+                <input type="text" id="mov-paciente-nome" name="pacienteNome" class="form-input" maxlength="200" 
+                  placeholder="Nome completo do paciente" list="patients-datalist" autocomplete="off">
+                <datalist id="patients-datalist">
+                  <!-- Preenchido dinamicamente com pacientes cadastrados -->
+                </datalist>
+                <span class="form-hint text-xs text-muted">💡 Selecione um paciente cadastrado para preencher automaticamente prontuário, cirurgia, sala e médico</span>
               </div>
               <div class="form-group">
                 <label class="form-label" for="mov-prontuario">Nº Prontuário</label>
-                <input type="text" id="mov-prontuario" name="prontuario" class="form-input" maxlength="30">
+                <input type="text" id="mov-prontuario" name="prontuario" class="form-input" maxlength="30" list="prontuarios-datalist" autocomplete="off">
+                <datalist id="prontuarios-datalist">
+                  <!-- Preenchido dinamicamente -->
+                </datalist>
+                <span class="form-hint text-xs text-muted">Ou digite o prontuário</span>
               </div>
               <div class="form-group">
                 <label class="form-label" for="mov-cirurgia">Tipo de Cirurgia</label>
@@ -218,7 +250,7 @@ function buildMovementsHTML() {
                 <input type="text" id="mov-crm" name="crmResponsavel" class="form-input" maxlength="20">
               </div>
               <!-- SNCR / Número de Notificação — obrigatório para listas A e B (Port. 344/98 + RDC 873/2024) -->
-              <div class="form-group form-col-2" id="mov-sncr-group" style="display:none">
+              <div class="form-group form-col-2" id="mov-sncr-group">
                 <label class="form-label" for="mov-sncr">
                   Nº Notificação / SNCR <span class="required">*</span>
                   <span class="badge badge-danger badge-sm ml-auto">Port. 344/98 • RDC 873/2024</span>
@@ -226,7 +258,7 @@ function buildMovementsHTML() {
                 <input type="text" id="mov-sncr" name="sncr" class="form-input" maxlength="50"
                   placeholder="Número da Notificação de Receita ou código SNCR">
                 <span class="form-error" id="err-mov-sncr"></span>
-                <span class="form-hint text-sm text-muted">Obrigatório para medicamentos das Listas A1, A2, A3, B1 e B2 da Portaria 344/98.</span>
+                <span class="form-hint text-sm text-muted">⚠️ Obrigatório para medicamentos das Listas A1, A2, A3, B1 e B2 da Portaria 344/98.</span>
               </div>
             </div>
 
@@ -334,18 +366,38 @@ export async function openMovementModal(type = "saida", medId = null) {
   // Gerar protocolo
   document.getElementById("mov-protocolo").value = generateProtocol();
 
-  // Carregar medicamentos no select
-  await populateMedSelect(medId);
+  // Definir data/hora atual como padrão
+  const now = new Date();
+  const localDateTime = new Date(
+    now.getTime() - now.getTimezoneOffset() * 60000,
+  )
+    .toISOString()
+    .slice(0, 16);
+  document.getElementById("mov-data-hora").value = localDateTime;
+
+  // Carregar cache de medicações e adicionar primeira linha
+  await loadMedicationsCache();
+  await loadPatientsDatalist(); // Carregar pacientes cadastrados para autocomplete
 
   // Limpar form
   document.getElementById("form-movement").reset();
   document.getElementById("mov-tipo").value = type;
   document.getElementById("mov-protocolo").value = generateProtocol();
+  document.getElementById("mov-data-hora").value = localDateTime;
+
+  // Limpar tabela de medicações e adicionar primeira linha
+  const tbody = document.getElementById("medications-list-tbody");
+  if (tbody) {
+    tbody.innerHTML = "";
+    addMedicationRow(medId);
+  }
 
   // Info de alerta por tipo
   const alertMap = {
     saida:
       "Saída para procedimento cirúrgico. Deve ser registrada antes do uso.",
+    entrada:
+      "Entrada de medicamento no estoque. Verifique nota fiscal e validade.",
     devolucao:
       "Medicamento devolvido ao estoque. Verifique integridade e prazo.",
     perda:
@@ -358,70 +410,220 @@ export async function openMovementModal(type = "saida", medId = null) {
     alertEl.style.display = alertMap[type] ? "" : "none";
   }
 
-  if (medId) {
-    document.getElementById("mov-medicamento-id").value = medId;
-    await updateStockInfo(medId);
-  }
-
   modal.showModal();
 }
 
-async function populateMedSelect(preselect = null) {
-  const select = document.getElementById("mov-medicamento-id");
-  if (!select) return;
-  select.innerHTML = '<option value="">Carregando...</option>';
+// ============================================================
+// LISTA DE MEDICAÇÕES (múltiplas por movimentação)
+// ============================================================
 
+let medicationsCache = []; // Cache de medicações para o select
+let patientsCache = []; // Cache de pacientes cadastrados
+let surgeriesCache = []; // Cache de cirurgias para autocomplete completo
+
+async function loadMedicationsCache() {
+  const raw = await dbReadAll("medications");
+  medicationsCache = snapshotToArray(raw)
+    .filter((m) => m.status === "ativo")
+    .sort((a, b) => a.nome.localeCompare(b.nome));
+}
+
+async function loadPatientsDatalist() {
   try {
-    const raw = await dbReadAll("medications");
-    const meds = snapshotToArray(raw)
-      .filter((m) => m.status === "ativo")
-      .sort((a, b) => a.nome.localeCompare(b.nome));
-    select.innerHTML =
-      '<option value="">Selecione o medicamento...</option>' +
-      meds
+    const raw = await dbReadAll("surgeries");
+    const surgeries = snapshotToArray(raw);
+
+    // Armazenar todas as cirurgias para referência
+    surgeriesCache = surgeries.sort((a, b) => {
+      const dateA = a.data ? new Date(a.data).getTime() : 0;
+      const dateB = b.data ? new Date(b.data).getTime() : 0;
+      return dateB - dateA; // Mais recentes primeiro
+    });
+
+    // Extrair pacientes únicos com última cirurgia
+    const patientsMap = new Map();
+    surgeries.forEach((s) => {
+      if (s.pacienteNome && s.prontuario) {
+        const existing = patientsMap.get(s.prontuario);
+        const sDate = s.data ? new Date(s.data).getTime() : 0;
+        const eDate = existing?.data ? new Date(existing.data).getTime() : 0;
+
+        // Manter a cirurgia mais recente
+        if (!existing || sDate > eDate) {
+          patientsMap.set(s.prontuario, {
+            nome: s.pacienteNome,
+            prontuario: s.prontuario,
+            tipoCirurgia: s.tipoCirurgia || "",
+            sala: s.sala || "",
+            cirurgiao: s.cirurgiao || "",
+            data: s.data,
+          });
+        }
+      }
+    });
+
+    patientsCache = Array.from(patientsMap.values()).sort((a, b) =>
+      a.nome.localeCompare(b.nome),
+    );
+
+    // Preencher datalist de pacientes
+    const patientsDatalist = document.getElementById("patients-datalist");
+    if (patientsDatalist) {
+      patientsDatalist.innerHTML = patientsCache
         .map(
-          (m) =>
-            `<option value="${m.id}" ${m.id === preselect ? "selected" : ""}>${escapeHtml(m.nome)} — ${m.lista} — Qtd: ${m.qtdAtual ?? 0} ${m.unidade || ""}</option>`,
+          (p) =>
+            `<option value="${escapeHtml(p.nome)}" data-prontuario="${escapeHtml(p.prontuario)}">${escapeHtml(p.prontuario)} - ${escapeHtml(p.tipoCirurgia || "")}</option>`,
         )
         .join("");
-    if (preselect) await updateStockInfo(preselect);
-  } catch {
-    select.innerHTML = '<option value="">Erro ao carregar</option>';
+    }
+
+    // Preencher datalist de prontuários
+    const prontuariosDatalist = document.getElementById("prontuarios-datalist");
+    if (prontuariosDatalist) {
+      prontuariosDatalist.innerHTML = patientsCache
+        .map(
+          (p) =>
+            `<option value="${escapeHtml(p.prontuario)}">${escapeHtml(p.nome)} - ${escapeHtml(p.tipoCirurgia || "")}</option>`,
+        )
+        .join("");
+    }
+  } catch (err) {
+    console.warn("Erro ao carregar pacientes para autocomplete:", err);
   }
 }
 
-async function updateStockInfo(medId) {
-  const info = document.getElementById("mov-stock-info");
-  if (!info || !medId) return;
-  const med = await dbRead("medications", medId);
-  if (!med) return;
+// Função para preencher campos com dados da cirurgia
+function fillSurgeryData(prontuario) {
+  const paciente = patientsCache.find((p) => p.prontuario === prontuario);
+  if (!paciente) return;
 
-  const dias = diasRestantes(med.validade);
-  const vencido = med.validade && dias < 0;
-  const validadeText = med.validade
-    ? `Validade: ${formatDate(med.validade)} (${textoDiasRestantes(dias)})`
-    : "";
+  // Preencher campos automaticamente
+  const nomeInput = document.getElementById("mov-paciente-nome");
+  const cirurgiaInput = document.getElementById("mov-cirurgia");
+  const salaInput = document.getElementById("mov-sala");
+  const medicoInput = document.getElementById("mov-medico");
 
-  info.innerHTML =
-    `Estoque: <strong>${formatNumber(med.qtdAtual ?? 0)} ${med.unidade || ""}</strong>. ` +
-    (vencido
-      ? `<span class="text-danger fw-600">❌ MEDICAMENTO VENCIDO — saída bloqueada</span>`
-      : validadeText
-        ? `<span class="${dias <= 30 ? "text-warning" : ""}">${validadeText}</span>`
-        : "");
+  if (nomeInput && !nomeInput.value) nomeInput.value = paciente.nome;
+  if (cirurgiaInput && !cirurgiaInput.value)
+    cirurgiaInput.value = paciente.tipoCirurgia;
+  if (salaInput && !salaInput.value) salaInput.value = paciente.sala;
+  if (medicoInput && !medicoInput.value) medicoInput.value = paciente.cirurgiao;
+}
 
-  // Mostrar/ocultar campo SNCR com base na lista do medicamento
-  const listasControladas = ["A1", "A2", "A3", "B1", "B2"];
-  const sncrGroup = document.getElementById("mov-sncr-group");
-  const tipo = document.getElementById("mov-tipo")?.value;
-  if (sncrGroup) {
-    const exibir = tipo === "saida" && listasControladas.includes(med.lista);
-    sncrGroup.style.display = exibir ? "" : "none";
+function addMedicationRow(preselectedMedId = null) {
+  const tbody = document.getElementById("medications-list-tbody");
+  if (!tbody) return;
+
+  const rowId = `med-row-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+  const row = document.createElement("tr");
+  row.id = rowId;
+  row.innerHTML = `
+    <td>
+      <select class="form-select form-select-sm medication-select" data-row-id="${rowId}" required>
+        <option value="">Selecione...</option>
+        ${medicationsCache
+          .map(
+            (m) =>
+              `<option value="${m.id}" data-qtd="${m.qtdAtual ?? 0}" data-unidade="${m.unidade || ""}" data-lista="${m.lista || ""}" ${m.id === preselectedMedId ? "selected" : ""}>
+            ${escapeHtml(m.nome)} — ${m.lista}
+          </option>`,
+          )
+          .join("")}
+      </select>
+    </td>
+    <td>
+      <input type="number" class="form-input form-input-sm medication-quantity" min="1" step="1" placeholder="Qtd" required data-row-id="${rowId}">
+    </td>
+    <td class="medication-stock-info" data-row-id="${rowId}">
+      <span class="text-muted text-sm">—</span>
+    </td>
+    <td class="text-center">
+      <button type="button" class="btn btn-icon btn-sm btn-danger-ghost" onclick="removeMedicationRow('${rowId}')" title="Remover">
+        ${icon("trash", "icon icon-sm")}
+      </button>
+    </td>
+  `;
+
+  tbody.appendChild(row);
+
+  // Event listener para atualizar info de estoque
+  const select = row.querySelector(".medication-select");
+  select.addEventListener("change", () => updateRowStockInfo(rowId));
+
+  if (preselectedMedId) {
+    updateRowStockInfo(rowId);
   }
+}
+
+function updateRowStockInfo(rowId) {
+  const row = document.getElementById(rowId);
+  if (!row) return;
+
+  const select = row.querySelector(".medication-select");
+  const stockInfo = row.querySelector(".medication-stock-info");
+
+  const selectedOption = select.options[select.selectedIndex];
+  if (!selectedOption || !selectedOption.value) {
+    stockInfo.innerHTML = '<span class="text-muted text-sm">—</span>';
+    return;
+  }
+
+  const qtd = selectedOption.dataset.qtd || 0;
+  const unidade = selectedOption.dataset.unidade || "";
+  const lista = selectedOption.dataset.lista || "";
+
+  const listasControladas = ["A1", "A2", "A3", "B1", "B2"];
+  const isControlled = listasControladas.includes(lista);
+
+  stockInfo.innerHTML = `
+    <span class="text-sm ${qtd <= 0 ? "text-danger" : qtd <= 5 ? "text-warning" : ""}">
+      ${formatNumber(qtd)} ${unidade}
+    </span>
+    ${isControlled ? `<span class="badge badge-danger badge-sm ml-1">${lista}</span>` : ""}
+  `;
+}
+
+window.removeMedicationRow = function (rowId) {
+  const row = document.getElementById(rowId);
+  if (row) row.remove();
+
+  // Se não houver mais linhas, adicionar uma vazia
+  const tbody = document.getElementById("medications-list-tbody");
+  if (tbody && tbody.children.length === 0) {
+    addMedicationRow();
+  }
+};
+
+function getMedicationsFromRows() {
+  const tbody = document.getElementById("medications-list-tbody");
+  if (!tbody) return [];
+
+  const medications = [];
+  const rows = tbody.querySelectorAll("tr");
+
+  rows.forEach((row) => {
+    const select = row.querySelector(".medication-select");
+    const quantityInput = row.querySelector(".medication-quantity");
+
+    if (select && select.value && quantityInput && quantityInput.value) {
+      const selectedOption = select.options[select.selectedIndex];
+      medications.push({
+        id: select.value,
+        nome: selectedOption.text.split(" — ")[0],
+        lista: selectedOption.dataset.lista || "",
+        qtdAtual: parseInt(selectedOption.dataset.qtd) || 0,
+        unidade: selectedOption.dataset.unidade || "",
+        quantidade: parseInt(quantityInput.value) || 0,
+      });
+    }
+  });
+
+  return medications;
 }
 
 // ============================================================
-// SALVAR MOVIMENTAÇÃO
+// SALVAR MOVIMENTAÇÃO (MÚLTIPLAS MEDICAÇÕES)
 // ============================================================
 
 async function saveMovement(formData) {
@@ -434,20 +636,38 @@ async function saveMovement(formData) {
     .forEach((el) => (el.textContent = ""));
 
   const tipo = formData.get("tipo");
-  const medId = formData.get("medicamentoId");
-  const quantidade = parseInt(formData.get("quantidade"), 10);
   const confirma = formData.get("confirma");
+  const dataHoraStr = formData.get("dataHora");
+
+  // Obter lista de medicações
+  const medications = getMedicationsFromRows();
 
   // Validações
   let valid = true;
-  if (!medId) {
-    setErr("err-mov-med", "Selecione o medicamento.");
+
+  if (medications.length === 0) {
+    setErr("err-mov-medications", "Adicione pelo menos uma medicação.");
     valid = false;
   }
-  if (!quantidade || quantidade < 1) {
-    setErr("err-mov-qtd", "Informe a quantidade.");
+
+  // Validar data/hora
+  if (!dataHoraStr) {
+    setErr("err-mov-data", "Informe a data e hora.");
     valid = false;
+  } else {
+    const dataHora = new Date(dataHoraStr);
+    const agora = new Date();
+    const diasAtras30 = new Date(agora.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    if (dataHora > agora) {
+      setErr("err-mov-data", "Data/hora não pode ser futura.");
+      valid = false;
+    } else if (dataHora < diasAtras30) {
+      setErr("err-mov-data", "Data/hora não pode ser anterior a 30 dias.");
+      valid = false;
+    }
   }
+
   if (!confirma) {
     setErr("err-mov-confirma", "Confirmação obrigatória.");
     valid = false;
@@ -456,60 +676,50 @@ async function saveMovement(formData) {
     setErr("err-mov-causa", "Informe a causa.");
     valid = false;
   }
+
   if (!valid) return;
 
   const btn = document.getElementById("btn-save-mov");
   btn.disabled = true;
-  btn.innerHTML = `${icon("loading", "icon icon-sm")} Registrando...`;
+  btn.innerHTML = `${icon("loading", "icon icon-sm")} Registrando ${medications.length} medicação(ões)...`;
 
   try {
-    // Verificar estoque para saídas/perdas/descartes
-    const med = await dbRead("medications", medId);
-    if (!med) throw new Error("Medicamento não encontrado.");
-
     const decrementa = ["saida", "perda", "descarte"].includes(tipo);
     const incrementa = ["entrada", "devolucao"].includes(tipo);
-
-    if (decrementa && (med.qtdAtual ?? 0) < quantidade) {
-      setErr(
-        "err-mov-qtd",
-        `Estoque insuficiente. Disponível: ${med.qtdAtual ?? 0}.`,
-      );
-      return;
-    }
-
-    // ✔ Bloquear saída de medicamento VENCIDO (Port. 344/98 Art. 57)
-    if (decrementa && med.validade) {
-      const diasVal = diasRestantes(med.validade);
-      if (diasVal < 0) {
-        setErr(
-          "err-mov-qtd",
-          `❌ Medicamento VENCIDO há ${Math.abs(diasVal)} dia(s) (validade: ${formatDate(med.validade)}). Saída bloqueada conforme Port. 344/98 Art. 57.`,
-        );
-        return;
-      }
-    }
-
-    // ✔ Exigir SNCR/Número de Notificação para controlados das Listas A e B (RDC 873/2024)
     const listasControladas = ["A1", "A2", "A3", "B1", "B2"];
-    if (tipo === "saida" && listasControladas.includes(med.lista)) {
-      const sncr = formData.get("sncr")?.trim();
-      if (!sncr) {
+
+    // Validar cada medicação
+    for (const med of medications) {
+      if (decrementa && med.qtdAtual < med.quantidade) {
         setErr(
-          "err-mov-sncr",
-          `Número de Notificação/SNCR obrigatório para ${med.lista} (Port. 344/98 + RDC 873/2024).`,
+          "err-mov-medications",
+          `${med.nome}: Estoque insuficiente. Disponível: ${med.qtdAtual}.`,
         );
+        btn.disabled = false;
+        btn.innerHTML = `${icon("check", "icon icon-sm")} Registrar`;
         return;
+      }
+
+      // Verificar SNCR para controlados
+      if (tipo === "saida" && listasControladas.includes(med.lista)) {
+        const sncr = formData.get("sncr")?.trim();
+        if (!sncr) {
+          setErr(
+            "err-mov-medications",
+            `${med.nome} (${med.lista}): Número de Notificação/SNCR obrigatório (Port. 344/98).`,
+          );
+          btn.disabled = false;
+          btn.innerHTML = `${icon("check", "icon icon-sm")} Registrar`;
+          return;
+        }
       }
     }
 
-    const movData = {
+    // Dados comuns a todas as movimentações
+    const baseProtocol = formData.get("protocolo") || generateProtocol();
+    const commonData = {
       tipo,
-      medicamentoId: medId,
-      medicamentoNome: med.nome,
-      medicamentoLista: med.lista,
-      quantidade,
-      protocolo: formData.get("protocolo") || generateProtocol(),
+      dataHora: new Date(dataHoraStr).toISOString(),
       pacienteNome: formData.get("pacienteNome")?.trim() || null,
       prontuario: formData.get("prontuario")?.trim() || null,
       tipoCirurgia: formData.get("tipoCirurgia")?.trim() || null,
@@ -526,45 +736,63 @@ async function saveMovement(formData) {
       registradoPorRole: profile.role,
     };
 
-    // Criar movimentação
-    const movId = await dbCreate("movements", movData);
+    // Criar uma movimentação para cada medicação
+    const createdMovements = [];
+    for (let i = 0; i < medications.length; i++) {
+      const med = medications[i];
+      const movData = {
+        ...commonData,
+        medicamentoId: med.id,
+        medicamentoNome: med.nome,
+        medicamentoLista: med.lista,
+        quantidade: med.quantidade,
+        protocolo:
+          medications.length > 1 ? `${baseProtocol}-${i + 1}` : baseProtocol,
+      };
 
-    // Atualizar estoque
-    if (decrementa)
-      await decrementarEstoque(medId, quantidade, profile.uid || "");
-    if (incrementa)
-      await incrementarEstoque(medId, quantidade, profile.uid || "");
+      // Criar movimentação
+      const movId = await dbCreate("movements", movData);
 
-    // Auditoria
-    await auditLog({
-      uid: profile.uid || "",
-      userName: profile.nome,
-      action: `MOVEMENT_${tipo.toUpperCase()}`,
-      module: "movements",
-      recordId: movId,
-      details: `${labelTipoMovimento(tipo)}: ${quantidade}x ${med.nome}. Protocolo: ${movData.protocolo}`,
-    });
+      // Atualizar estoque
+      if (decrementa)
+        await decrementarEstoque(med.id, med.quantidade, profile.uid || "");
+      if (incrementa)
+        await incrementarEstoque(med.id, med.quantidade, profile.uid || "");
+
+      // Auditoria
+      await auditLog({
+        uid: profile.uid || "",
+        userName: profile.nome,
+        action: `MOVEMENT_${tipo.toUpperCase()}`,
+        module: "movements",
+        recordId: movId,
+        details: `${labelTipoMovimento(tipo)}: ${med.quantidade}x ${med.nome}. Protocolo: ${movData.protocolo}`,
+      });
+
+      createdMovements.push({ movId, med, movData });
+    }
 
     // ⚠️ ALERTA REGULATÓRIO: desvio/roubo exige notificação à VISA (Port. 344/98 Art. 56)
     const causa = formData.get("causa");
     if (causa === "desvio") {
-      await auditLog({
-        uid: profile.uid || "",
-        userName: profile.nome,
-        action: "ALERT_DESVIO_CONTROLADO",
-        module: "movements",
-        recordId: movId,
-        details: `⚠️ DESVIO/ROUBO de controlado: ${med.nome} (${med.lista}) — ${quantidade} ${med.unidade || "un"}. NOTIFICAR VISA IMEDIATAMENTE conforme Port. 344/98 Art. 56.`,
-      });
+      for (const { movId, med, movData } of createdMovements) {
+        await auditLog({
+          uid: profile.uid || "",
+          userName: profile.nome,
+          action: "ALERT_DESVIO_CONTROLADO",
+          module: "movements",
+          recordId: movId,
+          details: `⚠️ DESVIO/ROUBO de controlado: ${med.nome} (${med.lista}) — ${med.quantidade} ${med.unidade || "un"}. NOTIFICAR VISA IMEDIATAMENTE conforme Port. 344/98 Art. 56.`,
+        });
+      }
+
       // Alerta visual persistente
       setTimeout(() => {
         alert(
           `⚠️ ATENÇÃO — NOTIFICAÇÃO OBRIGATÓRIA\n\n` +
-            `Foi registrado um DESVIO/ROUBO do medicamento controlado:\n` +
-            `${med.nome} (Lista ${med.lista}) — ${quantidade} ${med.unidade || "un"}\n\n` +
-            `Conforme Port. 344/98 Art. 56, este evento DEVE ser comunicado à\n` +
+            `Foram registrados DESVIO/ROUBO de ${medications.length} medicamento(s) controlado(s).\n\n` +
+            `Conforme Port. 344/98 Art. 56, estes eventos DEVEM ser comunicados à\n` +
             `Vigilância Sanitária local (VISA) e ao CRF imediatamente.\n\n` +
-            `Protocolo: ${movData.protocolo}\n` +
             `Este alerta foi registrado na trilha de auditoria.`,
         );
       }, 500);
@@ -573,8 +801,8 @@ async function saveMovement(formData) {
     document.getElementById("modal-movement").close();
     showToast(
       causa === "desvio" ? "warning" : "success",
-      `${labelTipoMovimento(tipo)} registrada!`,
-      `Protocolo: ${movData.protocolo}${causa === "desvio" ? " — NOTIFICAR VISA!" : ""}`,
+      `${medications.length} ${labelTipoMovimento(tipo)}(s) registrada(s)!`,
+      `Protocolo: ${baseProtocol}${causa === "desvio" ? " — NOTIFICAR VISA!" : ""}`,
     );
     await loadMovements();
   } catch (err) {
@@ -594,7 +822,9 @@ let movsCache = [];
 export async function loadMovements(filters = {}) {
   const raw = await dbReadAll("movements");
   const all = snapshotToArray(raw);
-  movsCache = sortBy(all, "dataHora", "desc");
+  // Filtrar movimentações canceladas para não aparecerem nos KPIs e listagens
+  const ativas = all.filter((m) => m.status !== "cancelado");
+  movsCache = sortBy(ativas, "dataHora", "desc");
   renderKPIsMovements(movsCache);
   applyMovFilters(filters);
 }
@@ -822,13 +1052,41 @@ function setupMovementsListeners() {
     document.getElementById("mov-protocolo").value = generateProtocol();
   });
 
-  // Atualizar info de estoque ao mudar medicamento
+  // Adicionar linha de medicação
   document
-    .getElementById("mov-medicamento-id")
-    ?.addEventListener("change", async (e) => {
-      if (e.target.value) await updateStockInfo(e.target.value);
-      else document.getElementById("mov-stock-info").textContent = "";
+    .getElementById("btn-add-medication-row")
+    ?.addEventListener("click", () => {
+      addMedicationRow();
     });
+
+  // Sincronizar nome do paciente com prontuário e preencher dados da cirurgia
+  document
+    .getElementById("mov-paciente-nome")
+    ?.addEventListener("input", (e) => {
+      const nome = e.target.value;
+      const paciente = patientsCache.find((p) => p.nome === nome);
+      if (paciente) {
+        const prontuarioInput = document.getElementById("mov-prontuario");
+        if (prontuarioInput) {
+          prontuarioInput.value = paciente.prontuario;
+        }
+        // Preencher todos os dados da cirurgia
+        fillSurgeryData(paciente.prontuario);
+      }
+    });
+
+  document.getElementById("mov-prontuario")?.addEventListener("input", (e) => {
+    const prontuario = e.target.value;
+    const paciente = patientsCache.find((p) => p.prontuario === prontuario);
+    if (paciente) {
+      const nomeInput = document.getElementById("mov-paciente-nome");
+      if (nomeInput) {
+        nomeInput.value = paciente.nome;
+      }
+      // Preencher todos os dados da cirurgia
+      fillSurgeryData(prontuario);
+    }
+  });
 
   // Cancelamento lógico de movimentação (imutabilidade — RDC 204/2017)
   document
@@ -846,24 +1104,53 @@ function setupMovementsListeners() {
         return;
       }
       try {
+        // Buscar a movimentação para reverter o estoque
+        const mov = await dbRead("movements", movId);
+        if (!mov) {
+          throw new Error("Movimentação não encontrada.");
+        }
+
+        // Reverter o estoque conforme o tipo de movimentação
+        const tiposDecremento = ["saida", "perda", "descarte"];
+        const tiposIncremento = ["entrada", "devolucao"];
+
+        if (tiposDecremento.includes(mov.tipo)) {
+          // Se foi saída/perda/descarte, devolver ao estoque
+          await incrementarEstoque(
+            mov.medicamentoId,
+            mov.quantidade,
+            profile?.uid || "",
+          );
+        } else if (tiposIncremento.includes(mov.tipo)) {
+          // Se foi entrada/devolução, remover do estoque
+          await decrementarEstoque(
+            mov.medicamentoId,
+            mov.quantidade,
+            profile?.uid || "",
+          );
+        }
+
+        // Marcar como cancelado
         await dbUpdate("movements", movId, {
           status: "cancelado",
           canceladoPor: profile?.nome || "",
           canceladoEm: Date.now(),
           motivoCancelamento: motivo.trim(),
         });
+
         await auditLog({
           uid: profile?.uid || "",
           userName: profile?.nome || "",
           action: "CANCEL_MOVEMENT",
           module: "movements",
           recordId: movId,
-          details: `Movimentação cancelada. Motivo: ${motivo.trim()}`,
+          details: `Movimentação ${mov.tipo} cancelada e estoque revertido (${mov.quantidade}x ${mov.medicamentoNome}). Motivo: ${motivo.trim()}`,
         });
+
         showToast(
           "success",
           "Movimentação cancelada.",
-          "Registro mantido na trilha de auditoria.",
+          "Estoque revertido. Registro mantido na trilha de auditoria.",
         );
         await loadMovements();
       } catch (err) {
@@ -910,14 +1197,4 @@ function setupMovementsListeners() {
 function setErr(id, msg) {
   const el = document.getElementById(id);
   if (el) el.textContent = msg;
-}
-
-function escapeHtml(str) {
-  if (!str) return "";
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
 }

@@ -248,7 +248,12 @@ async function renderBalanco(mes, ano) {
   );
   const movs = snapshotToArray(rawMovs).filter((m) => {
     const d = m.dataHora ? new Date(m.dataHora) : null;
-    return d && d.getMonth() + 1 === mes && d.getFullYear() === ano;
+    return (
+      m.status !== "cancelado" &&
+      d &&
+      d.getMonth() + 1 === mes &&
+      d.getFullYear() === ano
+    );
   });
 
   const rawSettings =
@@ -395,7 +400,12 @@ async function renderBSPO(trimestre, ano) {
   );
   const movs = snapshotToArray(rawMovs).filter((m) => {
     const d = m.dataHora ? new Date(m.dataHora) : null;
-    return d && d.getFullYear() === ano && meses.includes(d.getMonth() + 1);
+    return (
+      m.status !== "cancelado" &&
+      d &&
+      d.getFullYear() === ano &&
+      meses.includes(d.getMonth() + 1)
+    );
   });
 
   const rawSettings =
@@ -517,6 +527,7 @@ async function renderConsumo(mes, ano) {
   const movs = snapshotToArray(rawMovs).filter((m) => {
     const d = m.dataHora ? new Date(m.dataHora) : null;
     return (
+      m.status !== "cancelado" &&
       d &&
       d.getMonth() + 1 === mes &&
       d.getFullYear() === ano &&
@@ -697,6 +708,7 @@ async function renderPerdas(mes, ano) {
   const raw = await dbReadAll("movements");
   const movs = snapshotToArray(raw).filter((m) => {
     if (!["perda", "descarte"].includes(m.tipo)) return false;
+    if (m.status === "cancelado") return false;
     const d = m.dataHora ? new Date(m.dataHora) : null;
     return d && d.getMonth() + 1 === mes && d.getFullYear() === ano;
   });

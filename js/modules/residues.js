@@ -448,8 +448,12 @@ async function saveResidue(formData, editId = null) {
 
 async function deleteResidue(id) {
   const profile = getSessionProfile();
-  if (!profile || profile.role !== "FARMACEUTICO_RT") {
-    showToast("error", "Sem permissão");
+  if (!profile || !["ADMIN", "FARMACEUTICO_RT"].includes(profile.role)) {
+    showToast(
+      "error",
+      "Sem permissão",
+      "Apenas ADMIN e Farmacêutico RT podem excluir registros.",
+    );
     return;
   }
   if (!window.confirm("Confirma a exclusão deste registro?")) return;

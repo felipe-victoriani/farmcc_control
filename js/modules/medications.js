@@ -775,7 +775,7 @@ export async function openMedicationHistory(medId) {
     const raw = await dbReadAll("movements");
     const allMovs = snapshotToArray(raw);
     const movs = allMovs
-      .filter((m) => m.medicamentoId === medId)
+      .filter((m) => m.medicamentoId === medId && m.status !== "cancelado")
       .sort((a, b) => (b.dataHora || 0) - (a.dataHora || 0))
       .slice(0, 50);
 
