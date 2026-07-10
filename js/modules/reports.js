@@ -519,9 +519,9 @@ async function renderBSPO(trimestre, ano) {
 
 async function renderConsumo(mes, ano) {
   const content = document.getElementById("report-content");
-  const [rawMovs, rawSurgs] = await Promise.all([
+  const [rawMovs, rawDays] = await Promise.all([
     dbReadAll("movements"),
-    dbReadAll("surgeries"),
+    dbReadAll("surgical_days"),
   ]);
 
   const movs = snapshotToArray(rawMovs).filter((m) => {
@@ -532,39 +532,39 @@ async function renderConsumo(mes, ano) {
       d.getMonth() + 1 === mes &&
       d.getFullYear() === ano &&
       m.tipo === "saida" &&
-      m.prontuario
+      m.diaCirurgicoId
     );
   });
 
-  const surgs = snapshotToArray(rawSurgs);
-  const byProntuario = groupBy(movs, "prontuario");
+  const days = snapshotToArray(rawDays);
+  const byDiaCirurgico = groupBy(movs, "diaCirurgicoId");
 
   reportData = movs.map((m) => ({
-    Prontuário: m.prontuario || "",
-    Paciente: m.pacienteNome || "",
+    "Dia Cirúrgico": m.diaCirurgicoData ? formatDate(m.diaCirurgicoData) : "",
+    Pacientes: m.pacientesNomes || "",
     "Data/Hora": formatDateTime(m.dataHora),
-    Cirurgia: m.tipoCirurgia || "",
     Medicamento: m.medicamentoNome || "",
+    Lote: m.protocolo || "",
     Lista: m.medicamentoLista || "",
     "Qtd.": m.quantidade,
     Por: m.registradoPorNome || "",
   }));
 
-  const prontuarios = Object.keys(byProntuario);
+  const diasCirurgicos = Object.keys(byDiaCirurgico);
 
   content.innerHTML = `
     <div class="report-document" id="report-printable">
-      <h2 class="report-title">MAPA DE CONSUMO POR CIRURGIA</h2>
-      <p class="report-subtitle">${formatMonthYear(mes, ano)} — ${movs.length} registros em ${prontuarios.length} prontuários</p>
+      <h2 class="report-title">MAPA DE CONSUMO POR DIA CIRÚRGICO</h2>
+      <p class="report-subtitle">${formatMonthYear(mes, ano)} — ${movs.length} registros em ${diasCirurgicos.length} dias cirúrgicos</p>
 
       ${
         !movs.length
-          ? `<div class="alert alert-info">Nenhuma saída registrada por prontuário no período.</div>`
+          ? `<div class="alert alert-info">Nenhuma saída registrada por dia cirúrgico no período.</div>`
           : `
-      ${prontuarios
-        .map((pron) => {
-          const items = byProntuario[pron];
-          const surg = surgs.find((s) => s.prontuario === pron);
+      ${diasCirurgicos
+        .map((dayId) => {
+          const items = byDiaCirurgico[dayId];
+          const day = days.find((d) => d.id === dayId);
           const total = items.reduce(
             (s, m) => s + (Number(m.quantidade) || 0),
             0,
@@ -573,20 +573,20 @@ async function renderConsumo(mes, ano) {
         <details class="collapsible" open>
           <summary class="collapsible-header">
             ${icon("chevronRight", "icon icon-sm collapsible-icon")}
-            <strong>Prontuário ${escapeHtml(pron)}</strong>
-            ${items[0]?.pacienteNome ? ` — ${escapeHtml(items[0].pacienteNome)}` : ""}
-            ${surg ? ` — ${escapeHtml(surg.tipoCirurgia)}` : ""}
+            <strong>📅 ${day?.data ? formatDate(day.data) : "Data não encontrada"}</strong>
+            ${items[0]?.pacientesNomes ? ` — ${escapeHtml(items[0].pacientesNomes)}` : ""}
             <span class="badge badge-neutral ml-auto">${items.length} items</span>
           </summary>
           <div class="collapsible-body">
             <table class="data-table">
-              <thead><tr><th>Data/Hora</th><th>Medicamento</th><th>Lista</th><th class="text-right">Qtd.</th><th>Registrado por</th></tr></thead>
+              <thead><tr><th>Data/Hora</th><th>Medicamento</th><th>Lote</th><th>Lista</th><th class="text-right">Qtd.</th><th>Registrado por</th></tr></thead>
               <tbody>
                 ${items
                   .map(
                     (m) => `<tr>
                   <td>${formatDateTime(m.dataHora)}</td>
                   <td>${escapeHtml(m.medicamentoNome || "—")}</td>
+                  <td><code class="text-sm">${escapeHtml(m.protocolo || "—")}</code></td>
                   <td><span class="badge ${badgeClassLista(m.medicamentoLista)}">${m.medicamentoLista || "—"}</span></td>
                   <td class="text-right">${formatNumber(m.quantidade)}</td>
                   <td>${escapeHtml(m.registradoPorNome || "—")}</td>
@@ -594,7 +594,7 @@ async function renderConsumo(mes, ano) {
                   )
                   .join("")}
               </tbody>
-              <tfoot><tr><td colspan="3"><strong>Total</strong></td><td class="text-right fw-600">${formatNumber(total)}</td><td></td></tr></tfoot>
+              <tfoot><tr><td colspan="4"><strong>Total</strong></td><td class="text-right fw-600">${formatNumber(total)}</td><td></td></tr></tfoot>
             </table>
           </div>
         </details>`;

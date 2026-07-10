@@ -353,3 +353,25 @@ export async function decrementarEstoque(medId, quantidade, uid) {
   });
   return novaQtd;
 }
+
+/**
+ * Ajusta o estoque de um medicamento sem validação.
+ * Uso exclusivo: reversão de movimentações canceladas.
+ * Permite estoque negativo temporário (será ajustado em inventário).
+ * @param {string} medId
+ * @param {number} delta - Quantidade a adicionar (positiva) ou remover (negativa)
+ * @param {string} uid
+ * @returns {Promise<number>} Nova quantidade
+ */
+export async function ajustarEstoque(medId, delta, uid) {
+  if (!isDbAvailable()) return 0;
+  const snap = await get(ref(db, `medications/${medId}/qtdAtual`));
+  const qtdAtual = snap.exists() ? snap.val() || 0 : 0;
+  const novaQtd = qtdAtual + delta;
+  await update(ref(db, `medications/${medId}`), {
+    qtdAtual: novaQtd,
+    atualizadoEm: serverTimestamp(),
+    atualizadoPor: uid,
+  });
+  return novaQtd;
+}

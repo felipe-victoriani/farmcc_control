@@ -114,8 +114,9 @@ async function routeTo(route) {
       }
       case "rastreabilidade":
       case "pacientes": {
-        const { renderPatientsModule } = await import("../modules/patients.js");
-        await renderPatientsModule();
+        const { renderSurgicalDaysModule } =
+          await import("../modules/surgical_days.js");
+        await renderSurgicalDaysModule();
         break;
       }
       case "validades": {
@@ -235,7 +236,7 @@ const NAV_ITEMS = [
   },
   {
     id: "pacientes",
-    label: "Pacientes",
+    label: "Dias Cirúrgicos",
     iconName: "patients",
     hash: "pacientes",
   },
@@ -425,7 +426,7 @@ const ROUTE_LABELS = {
   estoque: "Estoque",
   movimentacoes: "Movimentações",
   controlados: "Controlados",
-  pacientes: "Pacientes",
+  pacientes: "Dias Cirúrgicos",
   validades: "Validades",
   residuos: "Resíduos",
   relatorios: "Relatórios",

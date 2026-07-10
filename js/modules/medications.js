@@ -234,16 +234,9 @@ function buildMedicationsHTML() {
               <input type="text" id="med-apresentacao" name="apresentacao" class="form-input" maxlength="100" placeholder="Ex: Ampola 10mL">
             </div>
             <div class="form-group">
-              <label class="form-label" for="med-lote">Lote</label>
-              <input type="text" id="med-lote" name="lote" class="form-input" maxlength="50">
-            </div>
-            <div class="form-group">
               <label class="form-label" for="med-fabricante">Fabricante/Fornecedor</label>
               <input type="text" id="med-fabricante" name="fabricante" class="form-input" maxlength="100">
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="med-validade">Validade</label>
-              <input type="date" id="med-validade" name="validade" class="form-input">
+              <span class="form-hint text-sm text-muted">Será preenchido automaticamente nas entradas</span>
             </div>
             <div class="form-group">
               <label class="form-label" for="med-unidade">Unidade <span class="required">*</span></label>
@@ -623,9 +616,7 @@ async function saveMedication(formData, editId = null) {
       categoria: formData.get("categoria"),
       concentracao: formData.get("concentracao")?.trim() || "",
       apresentacao: formData.get("apresentacao")?.trim() || "",
-      lote: formData.get("lote")?.trim() || "",
       fabricante: formData.get("fabricante")?.trim() || "",
-      validade: formData.get("validade") || "",
       unidade: formData.get("unidade"),
       qtdAtual: parseInt(formData.get("qtdAtual"), 10) || 0,
       qtdMinima: parseInt(formData.get("qtdMinima"), 10) || 0,
@@ -637,30 +628,53 @@ async function saveMedication(formData, editId = null) {
 
     if (editId) {
       await dbUpdate("medications", editId, data);
-      await auditLog({
-        uid: profile.uid || "",
-        userName: profile.nome,
-        action: "UPDATE_MEDICATION",
-        module: "medications",
-        recordId: editId,
-        details: `Medicamento editado: ${data.nome}`,
-      });
       showToast("success", "Medicamento atualizado!", data.nome);
+
+      // Auditoria em try/catch separado para não bloquear o fluxo
+      try {
+        await auditLog({
+          uid: profile.uid || "",
+          userName: profile.nome,
+          action: "UPDATE_MEDICATION",
+          module: "medications",
+          recordId: editId,
+          details: `Medicamento editado: ${data.nome}`,
+        });
+      } catch (auditErr) {
+        console.warn("Erro ao registrar auditoria:", auditErr);
+      }
     } else {
       const newId = await dbCreate("medications", data);
-      await auditLog({
-        uid: profile.uid || "",
-        userName: profile.nome,
-        action: "CREATE_MEDICATION",
-        module: "medications",
-        recordId: newId,
-        details: `Medicamento criado: ${data.nome}`,
-      });
       showToast("success", "Medicamento cadastrado!", data.nome);
+
+      // Auditoria em try/catch separado para não bloquear o fluxo
+      try {
+        await auditLog({
+          uid: profile.uid || "",
+          userName: profile.nome,
+          action: "CREATE_MEDICATION",
+          module: "medications",
+          recordId: newId,
+          details: `Medicamento criado: ${data.nome}`,
+        });
+      } catch (auditErr) {
+        console.warn("Erro ao registrar auditoria:", auditErr);
+      }
     }
 
     document.getElementById("modal-medication").close();
-    // Reaplicar os filtros atuais após salvar
+  } catch (err) {
+    showToast("error", "Erro ao salvar", err.message);
+    btn.disabled = false;
+    btn.innerHTML = `${icon("check", "icon icon-sm")} Salvar Medicamento`;
+    return;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `${icon("check", "icon icon-sm")} Salvar Medicamento`;
+  }
+
+  // Reaplicar os filtros atuais após salvar (fora do try/catch principal)
+  try {
     await loadMedications({
       lista: document.getElementById("filter-lista")?.value || "",
       search: document.getElementById("med-search")?.value || "",
@@ -669,10 +683,7 @@ async function saveMedication(formData, editId = null) {
       estoque: document.getElementById("filter-estoque")?.value || "",
     });
   } catch (err) {
-    showToast("error", "Erro ao salvar", err.message);
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = `${icon("check", "icon icon-sm")} Salvar Medicamento`;
+    console.error("Erro ao recarregar medicamentos:", err);
   }
 }
 
@@ -688,22 +699,6 @@ function validateMedForm(formData) {
     errors.push({ field: "unidade", msg: "Selecione a unidade." });
   if (parseInt(formData.get("qtdAtual"), 10) < 0)
     errors.push({ field: "qtd-atual", msg: "Quantidade inválida." });
-
-  // Lote e validade obrigatórios para controlados A e B (Port. 344/98)
-  const listasControladas = ["A1", "A2", "A3", "B1", "B2"];
-  const lista = formData.get("lista");
-  if (listasControladas.includes(lista)) {
-    if (!formData.get("lote")?.trim())
-      errors.push({
-        field: "lote",
-        msg: "Lote obrigatório para controlados A/B (Port. 344/98).",
-      });
-    if (!formData.get("validade"))
-      errors.push({
-        field: "validade",
-        msg: "Validade obrigatória para controlados A/B.",
-      });
-  }
 
   return errors;
 }

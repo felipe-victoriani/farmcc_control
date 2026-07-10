@@ -2,11 +2,15 @@
  * @file movements.js
  * @description Módulo de movimentações de medicamentos.
  * Registro de saídas, entradas, devoluções, perdas e descartes conforme Port. 344/98.
- * Geração automática de protocolo, validação de estoque, histórico com filtros.
+ * Geração automática de lote, validação de estoque, histórico com filtros.
  */
 
 import { dbReadAll, dbRead, dbCreate, dbUpdate, auditLog } from "../core/db.js";
-import { decrementarEstoque, incrementarEstoque } from "../core/db.js";
+import {
+  decrementarEstoque,
+  incrementarEstoque,
+  ajustarEstoque,
+} from "../core/db.js";
 import { getSessionProfile } from "../core/auth.js";
 import { showToast } from "../shared/notifications.js";
 import { icon } from "../shared/icons.js";
@@ -105,7 +109,7 @@ function buildMovementsHTML() {
     <div class="filter-bar" id="movs-filter-bar">
       <div class="filter-search">
         ${icon("search", "icon icon-sm filter-search-icon")}
-        <input type="search" id="mov-search" class="form-input" placeholder="Buscar por medicamento, paciente, protocolo...">
+        <input type="search" id="mov-search" class="form-input" placeholder="Buscar por medicamento, paciente, lote...">
       </div>
       <div class="filter-group">
         <select id="filter-mov-tipo" class="form-select">
@@ -131,12 +135,12 @@ function buildMovementsHTML() {
           <table class="data-table" id="movs-table">
             <thead>
               <tr>
-                <th>Protocolo</th>
+                <th>Lote</th>
                 <th>Data/Hora</th>
                 <th>Tipo</th>
                 <th>Medicamento</th>
                 <th>Qtd.</th>
-                <th>Paciente / Cirurgia</th>
+                <th>Dia Cirúrgico / Pacientes</th>
                 <th>Responsável</th>
                 <th>Observação</th>
               </tr>
@@ -175,10 +179,10 @@ function buildMovementsHTML() {
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="mov-protocolo">Nº Protocolo</label>
+              <label class="form-label" for="mov-protocolo">Lote</label>
               <div class="input-group">
-                <input type="text" id="mov-protocolo" name="protocolo" class="form-input" readonly>
-                <button type="button" class="btn btn-secondary" id="btn-gen-protocol" title="Gerar novo protocolo">
+                <input type="text" id="mov-protocolo" name="protocolo" class="form-input" placeholder="Digite o número do lote">
+                <button type="button" class="btn btn-secondary" id="btn-gen-protocol" title="Gerar número automático">
                   ${icon("refresh", "icon icon-sm")}
                 </button>
               </div>
@@ -214,28 +218,19 @@ function buildMovementsHTML() {
             <!-- Campos de saída / uso cirúrgico -->
             <div id="mov-fields-saida" class="form-col-2 form-grid form-grid-2">
               <div class="form-group form-col-2">
-                <label class="form-label" for="mov-paciente-nome">
-                  Paciente
-                  <span class="badge badge-info badge-sm ml-1" title="Pacientes cadastrados disponíveis">📋</span>
+                <label class="form-label" for="mov-dia-cirurgico">
+                  Dia Cirúrgico <span class="required">*</span>
+                  <span class="badge badge-info badge-sm ml-1" title="Selecione o dia cirúrgico cadastrado">📋</span>
                 </label>
-                <input type="text" id="mov-paciente-nome" name="pacienteNome" class="form-input" maxlength="200" 
-                  placeholder="Nome completo do paciente" list="patients-datalist" autocomplete="off">
-                <datalist id="patients-datalist">
-                  <!-- Preenchido dinamicamente com pacientes cadastrados -->
-                </datalist>
-                <span class="form-hint text-xs text-muted">💡 Selecione um paciente cadastrado para preencher automaticamente prontuário, cirurgia, sala e médico</span>
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="mov-prontuario">Nº Prontuário</label>
-                <input type="text" id="mov-prontuario" name="prontuario" class="form-input" maxlength="30" list="prontuarios-datalist" autocomplete="off">
-                <datalist id="prontuarios-datalist">
-                  <!-- Preenchido dinamicamente -->
-                </datalist>
-                <span class="form-hint text-xs text-muted">Ou digite o prontuário</span>
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="mov-cirurgia">Tipo de Cirurgia</label>
-                <input type="text" id="mov-cirurgia" name="tipoCirurgia" class="form-input" maxlength="200" placeholder="Ex: Apendicectomia">
+                <select id="mov-dia-cirurgico" name="diaCirurgicoId" class="form-select" required>
+                  <option value="">Selecione o dia cirúrgico...</option>
+                  <!-- Preenchido dinamicamente com dias cirúrgicos cadastrados -->
+                </select>
+                <span class="form-error" id="err-mov-dia-cirurgico"></span>
+                <div id="mov-pacientes-info" class="mt-2 hidden">
+                  <span class="form-hint text-sm fw-600">👥 Pacientes neste dia cirúrgico:</span>
+                  <div id="mov-pacientes-list" class="mt-1 p-2" style="background: #f8f9fa; border-radius: 4px; font-size: 0.875rem;"></div>
+                </div>
               </div>
               <div class="form-group">
                 <label class="form-label" for="mov-sala">Sala / Centro Cirúrgico</label>
@@ -270,7 +265,13 @@ function buildMovementsHTML() {
               </div>
               <div class="form-group">
                 <label class="form-label" for="mov-fornecedor">Fornecedor</label>
-                <input type="text" id="mov-fornecedor" name="fornecedor" class="form-input" maxlength="100">
+                <input type="text" id="mov-fornecedor" name="fornecedor" class="form-input" maxlength="100" readonly>
+                <span class="form-hint text-sm text-muted">Preenchido automaticamente do cadastro do medicamento</span>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="mov-validade">Validade deste Lote <span class="required">*</span></label>
+                <input type="date" id="mov-validade" name="validade" class="form-input">
+                <span class="form-error" id="err-mov-validade"></span>
               </div>
             </div>
 
@@ -363,7 +364,7 @@ export async function openMovementModal(type = "saida", medId = null) {
     .getElementById("mov-fields-perda")
     ?.classList.toggle("hidden", !["perda", "descarte"].includes(type));
 
-  // Gerar protocolo
+  // Gerar lote automático
   document.getElementById("mov-protocolo").value = generateProtocol();
 
   // Definir data/hora atual como padrão
@@ -377,7 +378,7 @@ export async function openMovementModal(type = "saida", medId = null) {
 
   // Carregar cache de medicações e adicionar primeira linha
   await loadMedicationsCache();
-  await loadPatientsDatalist(); // Carregar pacientes cadastrados para autocomplete
+  await loadSurgicalDaysSelect(); // Carregar dias cirúrgicos cadastrados para select
 
   // Limpar form
   document.getElementById("form-movement").reset();
@@ -428,86 +429,66 @@ async function loadMedicationsCache() {
     .sort((a, b) => a.nome.localeCompare(b.nome));
 }
 
-async function loadPatientsDatalist() {
-  try {
-    const raw = await dbReadAll("surgeries");
-    const surgeries = snapshotToArray(raw);
+// Cache de dias cirúrgicos
+let surgicalDaysCache = [];
 
-    // Armazenar todas as cirurgias para referência
-    surgeriesCache = surgeries.sort((a, b) => {
+async function loadSurgicalDaysSelect() {
+  try {
+    const raw = await dbReadAll("surgical_days");
+    const days = snapshotToArray(raw);
+
+    surgicalDaysCache = days.sort((a, b) => {
       const dateA = a.data ? new Date(a.data).getTime() : 0;
       const dateB = b.data ? new Date(b.data).getTime() : 0;
       return dateB - dateA; // Mais recentes primeiro
     });
 
-    // Extrair pacientes únicos com última cirurgia
-    const patientsMap = new Map();
-    surgeries.forEach((s) => {
-      if (s.pacienteNome && s.prontuario) {
-        const existing = patientsMap.get(s.prontuario);
-        const sDate = s.data ? new Date(s.data).getTime() : 0;
-        const eDate = existing?.data ? new Date(existing.data).getTime() : 0;
-
-        // Manter a cirurgia mais recente
-        if (!existing || sDate > eDate) {
-          patientsMap.set(s.prontuario, {
-            nome: s.pacienteNome,
-            prontuario: s.prontuario,
-            tipoCirurgia: s.tipoCirurgia || "",
-            sala: s.sala || "",
-            cirurgiao: s.cirurgiao || "",
-            data: s.data,
-          });
-        }
-      }
-    });
-
-    patientsCache = Array.from(patientsMap.values()).sort((a, b) =>
-      a.nome.localeCompare(b.nome),
-    );
-
-    // Preencher datalist de pacientes
-    const patientsDatalist = document.getElementById("patients-datalist");
-    if (patientsDatalist) {
-      patientsDatalist.innerHTML = patientsCache
-        .map(
-          (p) =>
-            `<option value="${escapeHtml(p.nome)}" data-prontuario="${escapeHtml(p.prontuario)}">${escapeHtml(p.prontuario)} - ${escapeHtml(p.tipoCirurgia || "")}</option>`,
-        )
-        .join("");
-    }
-
-    // Preencher datalist de prontuários
-    const prontuariosDatalist = document.getElementById("prontuarios-datalist");
-    if (prontuariosDatalist) {
-      prontuariosDatalist.innerHTML = patientsCache
-        .map(
-          (p) =>
-            `<option value="${escapeHtml(p.prontuario)}">${escapeHtml(p.nome)} - ${escapeHtml(p.tipoCirurgia || "")}</option>`,
-        )
-        .join("");
+    // Preencher select de dias cirúrgicos
+    const select = document.getElementById("mov-dia-cirurgico");
+    if (select) {
+      select.innerHTML =
+        '<option value="">Selecione o dia cirúrgico...</option>' +
+        surgicalDaysCache
+          .map((day) => {
+            const qtdPacientes = day.pacientes?.length || 0;
+            const dataFormatada = formatDate(day.data);
+            return `<option value="${day.id}">${dataFormatada} (${qtdPacientes} paciente${qtdPacientes !== 1 ? "s" : ""})</option>`;
+          })
+          .join("");
     }
   } catch (err) {
-    console.warn("Erro ao carregar pacientes para autocomplete:", err);
+    console.warn("Erro ao carregar dias cirúrgicos:", err);
   }
 }
 
-// Função para preencher campos com dados da cirurgia
-function fillSurgeryData(prontuario) {
-  const paciente = patientsCache.find((p) => p.prontuario === prontuario);
-  if (!paciente) return;
+// Função para mostrar pacientes do dia cirúrgico selecionado
+function showSurgicalDayPatients(dayId) {
+  const day = surgicalDaysCache.find((d) => d.id === dayId);
+  const infoDiv = document.getElementById("mov-pacientes-info");
+  const listDiv = document.getElementById("mov-pacientes-list");
 
-  // Preencher campos automaticamente
-  const nomeInput = document.getElementById("mov-paciente-nome");
-  const cirurgiaInput = document.getElementById("mov-cirurgia");
-  const salaInput = document.getElementById("mov-sala");
-  const medicoInput = document.getElementById("mov-medico");
+  if (!day || !infoDiv || !listDiv) {
+    infoDiv?.classList.add("hidden");
+    return;
+  }
 
-  if (nomeInput && !nomeInput.value) nomeInput.value = paciente.nome;
-  if (cirurgiaInput && !cirurgiaInput.value)
-    cirurgiaInput.value = paciente.tipoCirurgia;
-  if (salaInput && !salaInput.value) salaInput.value = paciente.sala;
-  if (medicoInput && !medicoInput.value) medicoInput.value = paciente.cirurgiao;
+  if (!day.pacientes || day.pacientes.length === 0) {
+    infoDiv.classList.add("hidden");
+    return;
+  }
+
+  listDiv.innerHTML = day.pacientes
+    .map((p, idx) => {
+      const prontuarioText = p.prontuario
+        ? ` - <strong>Prontuário:</strong> ${escapeHtml(p.prontuario)}`
+        : "";
+      return `<div style="padding: 4px 0;">
+        ${idx + 1}. <strong>${escapeHtml(p.nome)}</strong>${prontuarioText}
+      </div>`;
+    })
+    .join("");
+
+  infoDiv.classList.remove("hidden");
 }
 
 function addMedicationRow(preselectedMedId = null) {
@@ -525,7 +506,7 @@ function addMedicationRow(preselectedMedId = null) {
         ${medicationsCache
           .map(
             (m) =>
-              `<option value="${m.id}" data-qtd="${m.qtdAtual ?? 0}" data-unidade="${m.unidade || ""}" data-lista="${m.lista || ""}" ${m.id === preselectedMedId ? "selected" : ""}>
+              `<option value="${m.id}" data-qtd="${m.qtdAtual ?? 0}" data-unidade="${m.unidade || ""}" data-lista="${m.lista || ""}" data-fabricante="${escapeHtml(m.fabricante || "")}" ${m.id === preselectedMedId ? "selected" : ""}>
             ${escapeHtml(m.nome)} — ${m.lista}
           </option>`,
           )
@@ -547,12 +528,16 @@ function addMedicationRow(preselectedMedId = null) {
 
   tbody.appendChild(row);
 
-  // Event listener para atualizar info de estoque
+  // Event listener para atualizar info de estoque e fornecedor
   const select = row.querySelector(".medication-select");
-  select.addEventListener("change", () => updateRowStockInfo(rowId));
+  select.addEventListener("change", () => {
+    updateRowStockInfo(rowId);
+    updateSupplierForEntry();
+  });
 
   if (preselectedMedId) {
     updateRowStockInfo(rowId);
+    updateSupplierForEntry();
   }
 }
 
@@ -582,6 +567,32 @@ function updateRowStockInfo(rowId) {
     </span>
     ${isControlled ? `<span class="badge badge-danger badge-sm ml-1">${lista}</span>` : ""}
   `;
+}
+
+/**
+ * Atualiza o campo de fornecedor quando tipo=entrada e seleciona medicamento
+ */
+function updateSupplierForEntry() {
+  const tipo = document.getElementById("mov-tipo")?.value;
+  if (tipo !== "entrada") return;
+
+  const fornecedorInput = document.getElementById("mov-fornecedor");
+  if (!fornecedorInput) return;
+
+  // Pegar o primeiro medicamento selecionado (se houver)
+  const tbody = document.getElementById("medications-list-tbody");
+  if (!tbody) return;
+
+  const firstSelect = tbody.querySelector(".medication-select");
+  if (!firstSelect || !firstSelect.value) {
+    fornecedorInput.value = "";
+    return;
+  }
+
+  const selectedOption = firstSelect.options[firstSelect.selectedIndex];
+  const fabricante = selectedOption.dataset.fabricante || "";
+
+  fornecedorInput.value = fabricante;
 }
 
 window.removeMedicationRow = function (rowId) {
@@ -672,6 +683,19 @@ async function saveMovement(formData) {
     setErr("err-mov-confirma", "Confirmação obrigatória.");
     valid = false;
   }
+
+  // Validar dia cirúrgico para saídas
+  if (tipo === "saida" && !formData.get("diaCirurgicoId")) {
+    setErr("err-mov-dia-cirurgico", "Selecione o dia cirúrgico.");
+    valid = false;
+  }
+
+  // Validar validade para entradas
+  if (tipo === "entrada" && !formData.get("validade")) {
+    setErr("err-mov-validade", "Informe a validade deste lote.");
+    valid = false;
+  }
+
   if (["perda", "descarte"].includes(tipo) && !formData.get("causa")) {
     setErr("err-mov-causa", "Informe a causa.");
     valid = false;
@@ -717,17 +741,32 @@ async function saveMovement(formData) {
 
     // Dados comuns a todas as movimentações
     const baseProtocol = formData.get("protocolo") || generateProtocol();
+
+    // Para saídas, obter informações do dia cirúrgico
+    let diaCirurgico = null;
+    let pacientesNomes = null;
+    if (tipo === "saida") {
+      const diaCirurgicoId = formData.get("diaCirurgicoId");
+      if (diaCirurgicoId) {
+        diaCirurgico = surgicalDaysCache.find((d) => d.id === diaCirurgicoId);
+        if (diaCirurgico && diaCirurgico.pacientes) {
+          pacientesNomes = diaCirurgico.pacientes.map((p) => p.nome).join(", ");
+        }
+      }
+    }
+
     const commonData = {
       tipo,
       dataHora: new Date(dataHoraStr).toISOString(),
-      pacienteNome: formData.get("pacienteNome")?.trim() || null,
-      prontuario: formData.get("prontuario")?.trim() || null,
-      tipoCirurgia: formData.get("tipoCirurgia")?.trim() || null,
+      diaCirurgicoId: formData.get("diaCirurgicoId") || null,
+      diaCirurgicoData: diaCirurgico?.data || null,
+      pacientesNomes: pacientesNomes || null,
       sala: formData.get("sala")?.trim() || null,
       medicoResponsavel: formData.get("medicoResponsavel")?.trim() || null,
       crmResponsavel: formData.get("crmResponsavel")?.trim() || null,
       notaFiscal: formData.get("notaFiscal")?.trim() || null,
       fornecedor: formData.get("fornecedor")?.trim() || null,
+      validade: formData.get("validade") || null,
       causa: formData.get("causa") || null,
       justificativa: formData.get("justificativa")?.trim() || null,
       sncr: formData.get("sncr")?.trim() || null,
@@ -759,15 +798,19 @@ async function saveMovement(formData) {
       if (incrementa)
         await incrementarEstoque(med.id, med.quantidade, profile.uid || "");
 
-      // Auditoria
-      await auditLog({
-        uid: profile.uid || "",
-        userName: profile.nome,
-        action: `MOVEMENT_${tipo.toUpperCase()}`,
-        module: "movements",
-        recordId: movId,
-        details: `${labelTipoMovimento(tipo)}: ${med.quantidade}x ${med.nome}. Protocolo: ${movData.protocolo}`,
-      });
+      // Auditoria em try/catch separado
+      try {
+        await auditLog({
+          uid: profile.uid || "",
+          userName: profile.nome,
+          action: `MOVEMENT_${tipo.toUpperCase()}`,
+          module: "movements",
+          recordId: movId,
+          details: `${labelTipoMovimento(tipo)}: ${med.quantidade}x ${med.nome}. Lote: ${movData.protocolo}`,
+        });
+      } catch (auditErr) {
+        console.warn("Erro ao registrar auditoria:", auditErr);
+      }
 
       createdMovements.push({ movId, med, movData });
     }
@@ -776,14 +819,18 @@ async function saveMovement(formData) {
     const causa = formData.get("causa");
     if (causa === "desvio") {
       for (const { movId, med, movData } of createdMovements) {
-        await auditLog({
-          uid: profile.uid || "",
-          userName: profile.nome,
-          action: "ALERT_DESVIO_CONTROLADO",
-          module: "movements",
-          recordId: movId,
-          details: `⚠️ DESVIO/ROUBO de controlado: ${med.nome} (${med.lista}) — ${med.quantidade} ${med.unidade || "un"}. NOTIFICAR VISA IMEDIATAMENTE conforme Port. 344/98 Art. 56.`,
-        });
+        try {
+          await auditLog({
+            uid: profile.uid || "",
+            userName: profile.nome,
+            action: "ALERT_DESVIO_CONTROLADO",
+            module: "movements",
+            recordId: movId,
+            details: `⚠️ DESVIO/ROUBO de controlado: ${med.nome} (${med.lista}) — ${med.quantidade} ${med.unidade || "un"}. NOTIFICAR VISA IMEDIATAMENTE conforme Port. 344/98 Art. 56.`,
+          });
+        } catch (auditErr) {
+          console.warn("Erro ao registrar auditoria de desvio:", auditErr);
+        }
       }
 
       // Alerta visual persistente
@@ -802,14 +849,23 @@ async function saveMovement(formData) {
     showToast(
       causa === "desvio" ? "warning" : "success",
       `${medications.length} ${labelTipoMovimento(tipo)}(s) registrada(s)!`,
-      `Protocolo: ${baseProtocol}${causa === "desvio" ? " — NOTIFICAR VISA!" : ""}`,
+      `Lote: ${baseProtocol}${causa === "desvio" ? " — NOTIFICAR VISA!" : ""}`,
     );
-    await loadMovements();
   } catch (err) {
     showToast("error", "Erro ao registrar", err.message);
+    btn.disabled = false;
+    btn.innerHTML = `${icon("check", "icon icon-sm")} Registrar`;
+    return;
   } finally {
     btn.disabled = false;
     btn.innerHTML = `${icon("check", "icon icon-sm")} Registrar`;
+  }
+
+  // Recarregar movimentações fora do try/catch principal
+  try {
+    await loadMovements();
+  } catch (err) {
+    console.error("Erro ao recarregar movimentações:", err);
   }
 }
 
@@ -840,7 +896,7 @@ function applyMovFilters(filters = {}) {
     if (
       search &&
       !searchMatch(mov.medicamentoNome, search) &&
-      !searchMatch(mov.pacienteNome, search) &&
+      !searchMatch(mov.pacientesNomes, search) &&
       !searchMatch(mov.protocolo, search)
     )
       return false;
@@ -906,12 +962,15 @@ function renderMovsTable(movs) {
         <div class="cell-primary">${escapeHtml(mov.medicamentoNome || "—")}</div>
         ${mov.medicamentoLista ? `<span class="badge badge-sm ${badgeClassLista(mov.medicamentoLista)}">${mov.medicamentoLista}</span>` : ""}
         ${mov.sncr ? `<div class="cell-secondary text-muted">SNCR: ${escapeHtml(mov.sncr)}</div>` : ""}
+        ${mov.validade && mov.tipo === "entrada" ? `<div class="cell-secondary text-muted">Validade: ${formatDate(mov.validade)}</div>` : ""}
+        ${mov.fornecedor && mov.tipo === "entrada" ? `<div class="cell-secondary text-muted">Fornecedor: ${escapeHtml(mov.fornecedor)}</div>` : ""}
       </td>
       <td class="text-right fw-600">${formatNumber(mov.quantidade)}</td>
       <td>
-        ${mov.pacienteNome ? `<div class="cell-primary">${escapeHtml(mov.pacienteNome)}</div>` : ""}
-        ${mov.tipoCirurgia ? `<div class="cell-secondary">${escapeHtml(mov.tipoCirurgia)}</div>` : ""}
+        ${mov.diaCirurgicoData ? `<div class="cell-primary">📅 ${formatDate(mov.diaCirurgicoData)}</div>` : ""}
+        ${mov.pacientesNomes ? `<div class="cell-secondary">${escapeHtml(mov.pacientesNomes)}</div>` : ""}
         ${mov.causa ? `<div class="cell-secondary text-warning">${escapeHtml(mov.causa)}</div>` : ""}
+        ${!mov.diaCirurgicoData && !mov.pacientesNomes && !mov.causa ? "—" : ""}
       </td>
       <td>
         <div class="cell-primary">${escapeHtml(mov.registradoPorNome || "—")}</div>
@@ -993,15 +1052,15 @@ function renderKPIsMovements(movs) {
 
 function exportMovementsCSV() {
   const data = movsCache.map((m) => ({
-    Protocolo: m.protocolo || "",
+    Lote: m.protocolo || "",
     "Data/Hora": formatDateTime(m.dataHora),
     Tipo: labelTipoMovimento(m.tipo),
     Medicamento: m.medicamentoNome || "",
     Lista: m.medicamentoLista || "",
     Quantidade: m.quantidade,
-    Paciente: m.pacienteNome || "",
-    Prontuário: m.prontuario || "",
-    Cirurgia: m.tipoCirurgia || "",
+    Validade: m.validade ? formatDate(m.validade) : "",
+    "Dia Cirúrgico": m.diaCirurgicoData ? formatDate(m.diaCirurgicoData) : "",
+    Pacientes: m.pacientesNomes || "",
     Sala: m.sala || "",
     Médico: m.medicoResponsavel || "",
     "CRM/CRF": m.crmResponsavel || "",
@@ -1047,7 +1106,7 @@ function setupMovementsListeners() {
       await saveMovement(new FormData(e.target));
     });
 
-  // Gerar protocolo
+  // Gerar lote automático
   document.getElementById("btn-gen-protocol")?.addEventListener("click", () => {
     document.getElementById("mov-protocolo").value = generateProtocol();
   });
@@ -1059,34 +1118,17 @@ function setupMovementsListeners() {
       addMedicationRow();
     });
 
-  // Sincronizar nome do paciente com prontuário e preencher dados da cirurgia
+  // Listener para seleção de dia cirúrgico
   document
-    .getElementById("mov-paciente-nome")
-    ?.addEventListener("input", (e) => {
-      const nome = e.target.value;
-      const paciente = patientsCache.find((p) => p.nome === nome);
-      if (paciente) {
-        const prontuarioInput = document.getElementById("mov-prontuario");
-        if (prontuarioInput) {
-          prontuarioInput.value = paciente.prontuario;
-        }
-        // Preencher todos os dados da cirurgia
-        fillSurgeryData(paciente.prontuario);
+    .getElementById("mov-dia-cirurgico")
+    ?.addEventListener("change", (e) => {
+      const dayId = e.target.value;
+      if (dayId) {
+        showSurgicalDayPatients(dayId);
+      } else {
+        document.getElementById("mov-pacientes-info")?.classList.add("hidden");
       }
     });
-
-  document.getElementById("mov-prontuario")?.addEventListener("input", (e) => {
-    const prontuario = e.target.value;
-    const paciente = patientsCache.find((p) => p.prontuario === prontuario);
-    if (paciente) {
-      const nomeInput = document.getElementById("mov-paciente-nome");
-      if (nomeInput) {
-        nomeInput.value = paciente.nome;
-      }
-      // Preencher todos os dados da cirurgia
-      fillSurgeryData(prontuario);
-    }
-  });
 
   // Cancelamento lógico de movimentação (imutabilidade — RDC 204/2017)
   document
@@ -1115,17 +1157,17 @@ function setupMovementsListeners() {
         const tiposIncremento = ["entrada", "devolucao"];
 
         if (tiposDecremento.includes(mov.tipo)) {
-          // Se foi saída/perda/descarte, devolver ao estoque
+          // Se foi saída/perda/descarte, devolver ao estoque (incrementar)
           await incrementarEstoque(
             mov.medicamentoId,
             mov.quantidade,
             profile?.uid || "",
           );
         } else if (tiposIncremento.includes(mov.tipo)) {
-          // Se foi entrada/devolução, remover do estoque
-          await decrementarEstoque(
+          // Se foi entrada/devolução, remover do estoque (sem validação de estoque mínimo)
+          await ajustarEstoque(
             mov.medicamentoId,
-            mov.quantidade,
+            -mov.quantidade,
             profile?.uid || "",
           );
         }
@@ -1138,23 +1180,38 @@ function setupMovementsListeners() {
           motivoCancelamento: motivo.trim(),
         });
 
-        await auditLog({
-          uid: profile?.uid || "",
-          userName: profile?.nome || "",
-          action: "CANCEL_MOVEMENT",
-          module: "movements",
-          recordId: movId,
-          details: `Movimentação ${mov.tipo} cancelada e estoque revertido (${mov.quantidade}x ${mov.medicamentoNome}). Motivo: ${motivo.trim()}`,
-        });
-
         showToast(
           "success",
           "Movimentação cancelada.",
           "Estoque revertido. Registro mantido na trilha de auditoria.",
         );
-        await loadMovements();
+
+        // Auditoria em try/catch separado
+        try {
+          await auditLog({
+            uid: profile?.uid || "",
+            userName: profile?.nome || "",
+            action: "CANCEL_MOVEMENT",
+            module: "movements",
+            recordId: movId,
+            details: `Movimentação ${mov.tipo} cancelada e estoque revertido (${mov.quantidade}x ${mov.medicamentoNome}). Motivo: ${motivo.trim()}`,
+          });
+        } catch (auditErr) {
+          console.warn(
+            "Erro ao registrar auditoria de cancelamento:",
+            auditErr,
+          );
+        }
       } catch (err) {
         showToast("error", "Erro ao cancelar", err.message);
+        return;
+      }
+
+      // Recarregar movimentações fora do try/catch para evitar erro falso-positivo
+      try {
+        await loadMovements();
+      } catch (err) {
+        console.error("Erro ao recarregar movimentações:", err);
       }
     });
 
