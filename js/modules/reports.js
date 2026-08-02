@@ -266,26 +266,93 @@ async function renderBalanco(mes, ano) {
   };
   const dataAtual = formatDate(Date.now());
 
-  const rows = meds
-    .map((med) => {
-      const movsmed = movs.filter((m) => m.medicamentoId === med.id);
-      const entradas = movsmed
-        .filter((m) => ["entrada", "devolucao"].includes(m.tipo))
-        .reduce((s, m) => s + (Number(m.quantidade) || 0), 0);
-      const saidas = movsmed
-        .filter((m) => m.tipo === "saida")
-        .reduce((s, m) => s + (Number(m.quantidade) || 0), 0);
-      const perdas = movsmed
-        .filter((m) => ["perda", "descarte"].includes(m.tipo))
-        .reduce((s, m) => s + (Number(m.quantidade) || 0), 0);
-      return { med, entradas, saidas, perdas, saldo: med.qtdAtual ?? 0 };
+  // Agrupar por medicamento + lote
+  const lotesMap = new Map();
+
+  // Primeiro, coletar todos os lotes das movimentações
+  movs.forEach((m) => {
+    if (!m.medicamentoId) return;
+    const med = meds.find((x) => x.id === m.medicamentoId);
+    if (!med) return;
+
+    // Para cada medicamento em uma movimentação
+    const medications = Array.isArray(m.medications) ? m.medications : [];
+    medications.forEach((medItem) => {
+      const lote = medItem.numeroLote || "SEM LOTE";
+      const key = `${m.medicamentoId}_${lote}`;
+
+      if (!lotesMap.has(key)) {
+        lotesMap.set(key, {
+          med,
+          lote,
+          entradas: 0,
+          saidas: 0,
+          perdas: 0,
+          saldo: 0,
+        });
+      }
+
+      const item = lotesMap.get(key);
+      const qtd = Number(medItem.quantidade) || Number(m.quantidade) || 0;
+
+      if (["entrada", "devolucao"].includes(m.tipo)) {
+        item.entradas += qtd;
+      } else if (m.tipo === "saida") {
+        item.saidas += qtd;
+      } else if (["perda", "descarte"].includes(m.tipo)) {
+        item.perdas += qtd;
+      }
+    });
+
+    // Para movimentações antigas sem array medications
+    if (medications.length === 0 && m.numeroLote) {
+      const lote = m.numeroLote;
+      const key = `${m.medicamentoId}_${lote}`;
+
+      if (!lotesMap.has(key)) {
+        const med = meds.find((x) => x.id === m.medicamentoId);
+        if (!med) return;
+        lotesMap.set(key, {
+          med,
+          lote,
+          entradas: 0,
+          saidas: 0,
+          perdas: 0,
+          saldo: 0,
+        });
+      }
+
+      const item = lotesMap.get(key);
+      const qtd = Number(m.quantidade) || 0;
+
+      if (["entrada", "devolucao"].includes(m.tipo)) {
+        item.entradas += qtd;
+      } else if (m.tipo === "saida") {
+        item.saidas += qtd;
+      } else if (["perda", "descarte"].includes(m.tipo)) {
+        item.perdas += qtd;
+      }
+    }
+  });
+
+  // Calcular saldo (entradas - saídas - perdas)
+  const rows = Array.from(lotesMap.values())
+    .map((item) => {
+      item.saldo = item.entradas - item.saidas - item.perdas;
+      return item;
     })
-    .filter((r) => r.entradas || r.saidas || r.perdas || r.saldo);
+    .filter((r) => r.entradas || r.saidas || r.perdas || r.saldo)
+    .sort((a, b) => {
+      const nameCompare = a.med.nome.localeCompare(b.med.nome);
+      if (nameCompare !== 0) return nameCompare;
+      return a.lote.localeCompare(b.lote);
+    });
 
   reportData = rows.map((r) => ({
     Medicamento: r.med.nome,
     "DCB/DCI": r.med.dcb || "",
     Lista: r.med.lista,
+    Lote: r.lote,
     Entradas: r.entradas,
     Saídas: r.saidas,
     "Perdas/Desvios": r.perdas,
@@ -310,39 +377,22 @@ async function renderBalanco(mes, ano) {
       ${
         !rows.length
           ? `<div class="alert alert-info">Nenhuma movimentação de controlados no período.</div>`
-          : `
-      <table class="data-table report-table">
-        <thead>
-          <tr>
-            <th>Medicamento / DCB</th>
-            <th>Lista</th>
-            <th class="text-right">Entradas</th>
-            <th class="text-right">Saídas</th>
-            <th class="text-right">Perdas/Desvios</th>
-            <th class="text-right">Saldo Atual</th>
-            <th>Unidade</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows
-            .map(
-              (r) => `<tr>
-            <td>
-              <div class="cell-primary">${escapeHtml(r.med.nome)}</div>
-              ${r.med.dcb ? `<div class="cell-secondary">${escapeHtml(r.med.dcb)}</div>` : ""}
-            </td>
-            <td><span class="badge ${badgeClassLista(r.med.lista)}">${r.med.lista}</span></td>
-            <td class="text-right text-success fw-600">${formatNumber(r.entradas)}</td>
-            <td class="text-right text-danger fw-600">${formatNumber(r.saidas)}</td>
-            <td class="text-right text-warning">${r.perdas ? formatNumber(r.perdas) : "—"}</td>
-            <td class="text-right fw-600">${formatNumber(r.saldo)}</td>
-            <td>${escapeHtml(r.med.unidade || "")}</td>
-          </tr>`,
-            )
-            .join("")}
-        </tbody>
-      </table>
-      `
+          : `<table class="data-table report-table"><thead><tr><th>Medicamento / DCB</th><th>Lista</th><th>Lote</th><th>Entradas</th><th>Saídas</th><th>Perdas/Desvios</th><th>Saldo Atual</th><th>Unidade</th></tr></thead><tbody>${rows
+              .map((r) => {
+                const nome = `<div class="cell-primary">${escapeHtml(r.med.nome)}</div>`;
+                const dcb = r.med.dcb
+                  ? `<div class="cell-secondary">${escapeHtml(r.med.dcb)}</div>`
+                  : "";
+                const lista = `<span class="badge ${badgeClassLista(r.med.lista)}">${r.med.lista}</span>`;
+                const lote = `<code class="text-sm">${escapeHtml(r.lote)}</code>`;
+                const entradas = formatNumber(r.entradas);
+                const saidas = formatNumber(r.saidas);
+                const perdas = r.perdas ? formatNumber(r.perdas) : "—";
+                const saldo = formatNumber(r.saldo);
+                const unidade = escapeHtml(r.med.unidade || "");
+                return `<tr><td>${nome}${dcb}</td><td>${lista}</td><td>${lote}</td><td class="text-success fw-600">${entradas}</td><td class="text-danger fw-600">${saidas}</td><td class="text-warning">${perdas}</td><td class="fw-600">${saldo}</td><td>${unidade}</td></tr>`;
+              })
+              .join("")}</tbody></table>`
       }
 
       <div class="report-footer-signature print-block">
@@ -413,26 +463,91 @@ async function renderBSPO(trimestre, ano) {
   const nomeRT = rt.nome || "—";
   const crfRT = rt.crf || "—";
 
-  const rows = meds
-    .map((med) => {
-      const movsmed = movs.filter((m) => m.medicamentoId === med.id);
-      const entradas = movsmed
-        .filter((m) => ["entrada", "devolucao"].includes(m.tipo))
-        .reduce((s, m) => s + (Number(m.quantidade) || 0), 0);
-      const saidas = movsmed
-        .filter((m) => m.tipo === "saida")
-        .reduce((s, m) => s + (Number(m.quantidade) || 0), 0);
-      const perdas = movsmed
-        .filter((m) => ["perda", "descarte"].includes(m.tipo))
-        .reduce((s, m) => s + (Number(m.quantidade) || 0), 0);
-      return { med, entradas, saidas, perdas, saldo: med.qtdAtual ?? 0 };
+  // Agrupar por medicamento + lote
+  const lotesMap = new Map();
+
+  // Coletar todos os lotes das movimentações
+  movs.forEach((m) => {
+    if (!m.medicamentoId) return;
+    const med = meds.find((x) => x.id === m.medicamentoId);
+    if (!med) return;
+
+    const medications = Array.isArray(m.medications) ? m.medications : [];
+    medications.forEach((medItem) => {
+      const lote = medItem.numeroLote || "SEM LOTE";
+      const key = `${m.medicamentoId}_${lote}`;
+
+      if (!lotesMap.has(key)) {
+        lotesMap.set(key, {
+          med,
+          lote,
+          entradas: 0,
+          saidas: 0,
+          perdas: 0,
+          saldo: 0,
+        });
+      }
+
+      const item = lotesMap.get(key);
+      const qtd = Number(medItem.quantidade) || Number(m.quantidade) || 0;
+
+      if (["entrada", "devolucao"].includes(m.tipo)) {
+        item.entradas += qtd;
+      } else if (m.tipo === "saida") {
+        item.saidas += qtd;
+      } else if (["perda", "descarte"].includes(m.tipo)) {
+        item.perdas += qtd;
+      }
+    });
+
+    // Para movimentações antigas sem array medications
+    if (medications.length === 0 && m.numeroLote) {
+      const lote = m.numeroLote;
+      const key = `${m.medicamentoId}_${lote}`;
+
+      if (!lotesMap.has(key)) {
+        const med = meds.find((x) => x.id === m.medicamentoId);
+        if (!med) return;
+        lotesMap.set(key, {
+          med,
+          lote,
+          entradas: 0,
+          saidas: 0,
+          perdas: 0,
+          saldo: 0,
+        });
+      }
+
+      const item = lotesMap.get(key);
+      const qtd = Number(m.quantidade) || 0;
+
+      if (["entrada", "devolucao"].includes(m.tipo)) {
+        item.entradas += qtd;
+      } else if (m.tipo === "saida") {
+        item.saidas += qtd;
+      } else if (["perda", "descarte"].includes(m.tipo)) {
+        item.perdas += qtd;
+      }
+    }
+  });
+
+  const rows = Array.from(lotesMap.values())
+    .map((item) => {
+      item.saldo = item.entradas - item.saidas - item.perdas;
+      return item;
     })
-    .filter((r) => r.entradas || r.saidas || r.perdas || r.saldo);
+    .filter((r) => r.entradas || r.saidas || r.perdas || r.saldo)
+    .sort((a, b) => {
+      const nameCompare = a.med.nome.localeCompare(b.med.nome);
+      if (nameCompare !== 0) return nameCompare;
+      return a.lote.localeCompare(b.lote);
+    });
 
   reportData = rows.map((r) => ({
     Medicamento: r.med.nome,
     "DCB/DCI": r.med.dcb || "",
     Lista: r.med.lista,
+    Lote: r.lote,
     Entradas: r.entradas,
     Saídas: r.saidas,
     "Perdas/Desvios": r.perdas,
@@ -458,40 +573,24 @@ async function renderBSPO(trimestre, ano) {
       ${
         !rows.length
           ? `<div class="alert alert-info">Nenhuma movimentação de controlados no trimestre.</div>`
-          : `<table class="data-table report-table">
-          <thead>
-            <tr>
-              <th>Medicamento / DCB</th><th>Lista</th>
-              <th class="text-right">Entradas</th><th class="text-right">Saídas</th>
-              <th class="text-right">Perdas/Desvios</th><th class="text-right">Saldo Atual</th><th>Unidade</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows
-              .map(
-                (r) => `<tr>
-              <td><div class="cell-primary">${escapeHtml(r.med.nome)}</div>${r.med.dcb ? `<div class="cell-secondary">${escapeHtml(r.med.dcb)}</div>` : ""}</td>
-              <td><span class="badge ${badgeClassLista(r.med.lista)}">${r.med.lista}</span></td>
-              <td class="text-right text-success fw-600">${formatNumber(r.entradas)}</td>
-              <td class="text-right text-danger fw-600">${formatNumber(r.saidas)}</td>
-              <td class="text-right text-warning">${r.perdas ? formatNumber(r.perdas) : "—"}</td>
-              <td class="text-right fw-600">${formatNumber(r.saldo)}</td>
-              <td>${escapeHtml(r.med.unidade || "")}</td>
-            </tr>`,
-              )
-              .join("")}
-          </tbody>
-          <tfoot>
-            <tr style="border-top:2px solid var(--color-border)">
-              <td colspan="2"><strong>TOTAIS</strong></td>
-              <td class="text-right fw-600 text-success">${formatNumber(rows.reduce((s, r) => s + r.entradas, 0))}</td>
-              <td class="text-right fw-600 text-danger">${formatNumber(rows.reduce((s, r) => s + r.saidas, 0))}</td>
-              <td class="text-right fw-600 text-warning">${formatNumber(rows.reduce((s, r) => s + r.perdas, 0))}</td>
-              <td class="text-right fw-600">${formatNumber(rows.reduce((s, r) => s + r.saldo, 0))}</td>
-              <td></td>
-            </tr>
-          </tfoot>
-        </table>`
+          : `<table class="data-table report-table"><thead><tr><th>Medicamento / DCB</th><th>Lista</th><th>Lote</th><th>Entradas</th><th>Saídas</th><th>Perdas/Desvios</th><th>Saldo Atual</th><th>Unidade</th></tr></thead><tbody>${rows
+              .map((r) => {
+                const nome = `<div class="cell-primary">${escapeHtml(r.med.nome)}</div>`;
+                const dcb = r.med.dcb
+                  ? `<div class="cell-secondary">${escapeHtml(r.med.dcb)}</div>`
+                  : "";
+                const lista = `<span class="badge ${badgeClassLista(r.med.lista)}">${r.med.lista}</span>`;
+                const lote = `<code class="text-sm">${escapeHtml(r.lote)}</code>`;
+                const entradas = formatNumber(r.entradas);
+                const saidas = formatNumber(r.saidas);
+                const perdas = r.perdas ? formatNumber(r.perdas) : "—";
+                const saldo = formatNumber(r.saldo);
+                const unidade = escapeHtml(r.med.unidade || "");
+                return `<tr><td>${nome}${dcb}</td><td>${lista}</td><td>${lote}</td><td class="text-success fw-600">${entradas}</td><td class="text-danger fw-600">${saidas}</td><td class="text-warning">${perdas}</td><td class="fw-600">${saldo}</td><td>${unidade}</td></tr>`;
+              })
+              .join(
+                "",
+              )}</tbody><tfoot><tr style="border-top:2px solid var(--color-border)"><td colspan="3"><strong>TOTAIS</strong></td><td class="fw-600 text-success">${formatNumber(rows.reduce((s, r) => s + r.entradas, 0))}</td><td class="fw-600 text-danger">${formatNumber(rows.reduce((s, r) => s + r.saidas, 0))}</td><td class="fw-600 text-warning">${formatNumber(rows.reduce((s, r) => s + r.perdas, 0))}</td><td class="fw-600">${formatNumber(rows.reduce((s, r) => s + r.saldo, 0))}</td><td></td></tr></tfoot></table>`
       }
       <div class="report-footer-signature print-block">
         <p class="text-sm text-muted">BSPO deve ser entregue ao SNGPC e à Vigilância Sanitária local até o prazo legal. Conservar por mínimo 5 anos (Port. 344/98 Art. 58).</p>
@@ -544,7 +643,7 @@ async function renderConsumo(mes, ano) {
     Pacientes: m.pacientesNomes || "",
     "Data/Hora": formatDateTime(m.dataHora),
     Medicamento: m.medicamentoNome || "",
-    Lote: m.protocolo || "",
+    Lote: m.numeroLote || "",
     Lista: m.medicamentoLista || "",
     "Qtd.": m.quantidade,
     Por: m.registradoPorNome || "",
@@ -578,23 +677,32 @@ async function renderConsumo(mes, ano) {
             <span class="badge badge-neutral ml-auto">${items.length} items</span>
           </summary>
           <div class="collapsible-body">
-            <table class="data-table">
-              <thead><tr><th>Data/Hora</th><th>Medicamento</th><th>Lote</th><th>Lista</th><th class="text-right">Qtd.</th><th>Registrado por</th></tr></thead>
+            <table class="data-table consumption-table">
+              <thead>
+                <tr>
+                  <th>Data/Hora</th>
+                  <th>Medicamento</th>
+                  <th>Lote</th>
+                  <th>Lista</th>
+                  <th>Qtd.</th>
+                  <th>Registrado por</th>
+                </tr>
+              </thead>
               <tbody>
                 ${items
                   .map(
-                    (m) => `<tr>
-                  <td>${formatDateTime(m.dataHora)}</td>
-                  <td>${escapeHtml(m.medicamentoNome || "—")}</td>
-                  <td><code class="text-sm">${escapeHtml(m.protocolo || "—")}</code></td>
-                  <td><span class="badge ${badgeClassLista(m.medicamentoLista)}">${m.medicamentoLista || "—"}</span></td>
-                  <td class="text-right">${formatNumber(m.quantidade)}</td>
-                  <td>${escapeHtml(m.registradoPorNome || "—")}</td>
-                </tr>`,
+                    (m) =>
+                      `<tr><td>${formatDateTime(m.dataHora)}</td><td>${escapeHtml(m.medicamentoNome || "—")}</td><td><code class="text-sm">${escapeHtml(m.numeroLote || "—")}</code></td><td><span class="badge ${badgeClassLista(m.medicamentoLista)}">${m.medicamentoLista || "—"}</span></td><td>${formatNumber(m.quantidade)}</td><td>${escapeHtml(m.registradoPorNome || "—")}</td></tr>`,
                   )
                   .join("")}
               </tbody>
-              <tfoot><tr><td colspan="4"><strong>Total</strong></td><td class="text-right fw-600">${formatNumber(total)}</td><td></td></tr></tfoot>
+              <tfoot>
+                <tr>
+                  <td colspan="4"><strong>Total</strong></td>
+                  <td class="fw-600">${formatNumber(total)}</td>
+                  <td></td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </details>`;
@@ -680,15 +788,7 @@ async function renderValidades() {
                 const dias = diasRestantes(m.validade);
                 const cls =
                   dias < 0 ? "row-critical" : dias <= 30 ? "row-warning" : "";
-                return `<tr class="${cls}">
-              <td>${escapeHtml(m.nome)}</td>
-              <td><span class="badge ${badgeClassLista(m.lista)}">${m.lista}</span></td>
-              <td>${escapeHtml(m.lote || "—")}</td>
-              <td>${formatDate(m.validade)}</td>
-              <td>${textoDiasRestantes(dias)}</td>
-              <td class="text-right">${formatNumber(m.qtdAtual ?? 0)}</td>
-              <td>${escapeHtml(m.unidade || "")}</td>
-            </tr>`;
+                return `<tr class="${cls}"><td>${escapeHtml(m.nome)}</td><td><span class="badge ${badgeClassLista(m.lista)}">${m.lista}</span></td><td>${escapeHtml(m.lote || "—")}</td><td>${formatDate(m.validade)}</td><td>${textoDiasRestantes(dias)}</td><td class="text-right">${formatNumber(m.qtdAtual ?? 0)}</td><td>${escapeHtml(m.unidade || "")}</td></tr>`;
               })
               .join("") ||
             '<tr><td colspan="7" class="text-muted text-center">Nenhum item vencido ou próximo do vencimento.</td></tr>'
@@ -758,21 +858,22 @@ async function renderPerdas(mes, ano) {
           : `
       <table class="data-table report-table">
         <thead>
-          <tr><th>Data/Hora</th><th>Tipo</th><th>Medicamento</th><th>Lista</th><th class="text-right">Qtd.</th><th>Causa</th><th>Justificativa</th><th>Responsável</th></tr>
+          <tr>
+            <th>Data/Hora</th>
+            <th>Tipo</th>
+            <th>Medicamento</th>
+            <th>Lista</th>
+            <th class="text-right">Qtd.</th>
+            <th>Causa</th>
+            <th>Justificativa</th>
+            <th>Responsável</th>
+          </tr>
         </thead>
         <tbody>
           ${movs
             .map(
-              (m) => `<tr class="${m.causa === "desvio" ? "row-critical" : ""}">
-            <td>${formatDateTime(m.dataHora)}</td>
-            <td><span class="badge badge-warning">${labelTipoMovimento(m.tipo)}</span></td>
-            <td>${escapeHtml(m.medicamentoNome || "—")}</td>
-            <td><span class="badge ${badgeClassLista(m.medicamentoLista)}">${m.medicamentoLista || "—"}</span></td>
-            <td class="text-right">${formatNumber(m.quantidade)}</td>
-            <td>${escapeHtml(m.causa || "—")}</td>
-            <td>${escapeHtml(m.justificativa || "—")}</td>
-            <td>${escapeHtml(m.registradoPorNome || "—")}</td>
-          </tr>`,
+              (m) =>
+                `<tr class="${m.causa === "desvio" ? "row-critical" : ""}"><td>${formatDateTime(m.dataHora)}</td><td><span class="badge badge-warning">${labelTipoMovimento(m.tipo)}</span></td><td>${escapeHtml(m.medicamentoNome || "—")}</td><td><span class="badge ${badgeClassLista(m.medicamentoLista)}">${m.medicamentoLista || "—"}</span></td><td class="text-right">${formatNumber(m.quantidade)}</td><td>${escapeHtml(m.causa || "—")}</td><td>${escapeHtml(m.justificativa || "—")}</td><td>${escapeHtml(m.registradoPorNome || "—")}</td></tr>`,
             )
             .join("")}
         </tbody>
@@ -817,19 +918,20 @@ async function renderAuditoria(mes, ano) {
           : `
       <table class="data-table report-table">
         <thead>
-          <tr><th>Data/Hora</th><th>Usuário</th><th>Ação</th><th>Módulo</th><th>Detalhes</th></tr>
+          <tr>
+            <th>Data/Hora</th>
+            <th>Usuário</th>
+            <th>Ação</th>
+            <th>Módulo</th>
+            <th>Detalhes</th>
+          </tr>
         </thead>
         <tbody>
           ${logs
             .slice(0, 200)
             .map(
-              (l) => `<tr>
-            <td>${formatDateTime(l.timestamp)}</td>
-            <td>${escapeHtml(l.userName || "—")}</td>
-            <td><code class="text-sm">${escapeHtml(l.action || "—")}</code></td>
-            <td>${escapeHtml(l.module || "—")}</td>
-            <td class="text-sm">${escapeHtml(l.details || "—")}</td>
-          </tr>`,
+              (l) =>
+                `<tr><td>${formatDateTime(l.timestamp)}</td><td>${escapeHtml(l.userName || "—")}</td><td><code class="text-sm">${escapeHtml(l.action || "—")}</code></td><td>${escapeHtml(l.module || "—")}</td><td class="text-sm">${escapeHtml(l.details || "—")}</td></tr>`,
             )
             .join("")}
         </tbody>

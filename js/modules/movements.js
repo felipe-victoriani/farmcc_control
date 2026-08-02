@@ -135,7 +135,7 @@ function buildMovementsHTML() {
           <table class="data-table" id="movs-table">
             <thead>
               <tr>
-                <th>Lote</th>
+                <th>Protocolo</th>
                 <th>Data/Hora</th>
                 <th>Tipo</th>
                 <th>Medicamento</th>
@@ -179,13 +179,14 @@ function buildMovementsHTML() {
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="mov-protocolo">Lote</label>
+              <label class="form-label" for="mov-protocolo">Protocolo da Movimentação</label>
               <div class="input-group">
-                <input type="text" id="mov-protocolo" name="protocolo" class="form-input" placeholder="Digite o número do lote">
+                <input type="text" id="mov-protocolo" name="protocolo" class="form-input" placeholder="Gerado automaticamente ou digite manualmente">
                 <button type="button" class="btn btn-secondary" id="btn-gen-protocol" title="Gerar número automático">
                   ${icon("refresh", "icon icon-sm")}
                 </button>
               </div>
+              <span class="form-hint text-sm text-muted">Número de controle desta operação (ex: MOV-2026-389005)</span>
             </div>
 
             <!-- LISTA DE MEDICAÇÕES (múltiplas) -->
@@ -197,11 +198,11 @@ function buildMovementsHTML() {
                 </button>
               </div>
               <div class="table-wrapper" style="max-height: 300px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: 4px;">
-                <table class="table table-sm">
-                  <thead>
+                <table class="table table-sm" id="medications-table">
+                  <thead id="medications-thead">
                     <tr>
-                      <th style="width: 50%;">Medicamento</th>
-                      <th style="width: 20%;">Quantidade</th>
+                      <th style="width: 55%;">Medicamento / Lote</th>
+                      <th style="width: 15%;">Quantidade</th>
                       <th style="width: 20%;">Estoque</th>
                       <th style="width: 10%;"></th>
                     </tr>
@@ -259,6 +260,11 @@ function buildMovementsHTML() {
 
             <!-- Campos de entrada -->
             <div id="mov-fields-entrada" class="form-col-2 form-grid form-grid-2 hidden">
+              <div class="form-group">
+                <label class="form-label" for="mov-numero-lote-entrada">Número do Lote <span class="required">*</span></label>
+                <input type="text" id="mov-numero-lote-entrada" name="numeroLoteEntrada" class="form-input" maxlength="50" placeholder="Ex: LOTE-2024-001">
+                <span class="form-hint text-sm text-muted">Informe o lote do medicamento que está entrando no estoque</span>
+              </div>
               <div class="form-group">
                 <label class="form-label" for="mov-nota-fiscal">Nota Fiscal / Pedido</label>
                 <input type="text" id="mov-nota-fiscal" name="notaFiscal" class="form-input" maxlength="50">
@@ -491,11 +497,84 @@ function showSurgicalDayPatients(dayId) {
   infoDiv.classList.remove("hidden");
 }
 
-function addMedicationRow(preselectedMedId = null) {
+async function addMedicationRow(preselectedMedId = null) {
   const tbody = document.getElementById("medications-list-tbody");
   if (!tbody) return;
 
+  const tipo = document.getElementById("mov-tipo")?.value;
+  const isSaida = ["saida", "devolucao"].includes(tipo);
+
   const rowId = `med-row-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+  // Para SAÍDAS: buscar medicamentos COM lotes das entradas
+  let medicationOptions = "";
+  if (isSaida) {
+    const raw = await dbReadAll("movements");
+    const entradas = snapshotToArray(raw)
+      .filter((m) => m.tipo === "entrada" && m.numeroLote)
+      .sort((a, b) => {
+        // Ordenar por validade (FEFO)
+        if (a.validade && b.validade) {
+          return new Date(a.validade) - new Date(b.validade);
+        }
+        return 0;
+      });
+
+    // Agrupar por medicamento+lote
+    const lotesMap = new Map();
+    entradas.forEach((e) => {
+      const key = `${e.medicamentoId}|${e.numeroLote}`;
+      if (!lotesMap.has(key)) {
+        lotesMap.set(key, {
+          medicamentoId: e.medicamentoId,
+          medicamentoNome: e.medicamentoNome,
+          medicamentoLista: e.medicamentoLista || "",
+          numeroLote: e.numeroLote,
+          validade: e.validade,
+          qtdAtual: 0,
+        });
+      }
+    });
+
+    // Buscar estoque atual de cada medicamento
+    const lotes = Array.from(lotesMap.values());
+    for (const lote of lotes) {
+      const med = medicationsCache.find((m) => m.id === lote.medicamentoId);
+      if (med) {
+        lote.qtdAtual = med.qtdAtual || 0;
+        lote.unidade = med.unidade || "";
+      }
+    }
+
+    medicationOptions = lotes
+      .map((lote) => {
+        const validadeTexto = lote.validade
+          ? ` (Val: ${formatDate(lote.validade)})`
+          : "";
+        const diasRest = lote.validade ? diasRestantes(lote.validade) : null;
+        const alertaVenc = diasRest !== null && diasRest <= 30 ? "⚠️ " : "";
+
+        return `<option value="${lote.medicamentoId}" 
+        data-qtd="${lote.qtdAtual}" 
+        data-unidade="${lote.unidade}" 
+        data-lista="${lote.medicamentoLista}" 
+        data-lote="${escapeHtml(lote.numeroLote)}" 
+        ${lote.medicamentoId === preselectedMedId ? "selected" : ""}>
+        ${escapeHtml(lote.medicamentoNome)} — ${lote.medicamentoLista} — 📦 ${escapeHtml(lote.numeroLote)}${validadeTexto} ${alertaVenc}
+      </option>`;
+      })
+      .join("");
+  } else {
+    // Para ENTRADA: mostrar medicamentos normalmente
+    medicationOptions = medicationsCache
+      .map(
+        (m) =>
+          `<option value="${m.id}" data-qtd="${m.qtdAtual ?? 0}" data-unidade="${m.unidade || ""}" data-lista="${m.lista || ""}" data-fabricante="${escapeHtml(m.fabricante || "")}" ${m.id === preselectedMedId ? "selected" : ""}>
+        ${escapeHtml(m.nome)} — ${m.lista}
+      </option>`,
+      )
+      .join("");
+  }
 
   const row = document.createElement("tr");
   row.id = rowId;
@@ -503,14 +582,7 @@ function addMedicationRow(preselectedMedId = null) {
     <td>
       <select class="form-select form-select-sm medication-select" data-row-id="${rowId}" required>
         <option value="">Selecione...</option>
-        ${medicationsCache
-          .map(
-            (m) =>
-              `<option value="${m.id}" data-qtd="${m.qtdAtual ?? 0}" data-unidade="${m.unidade || ""}" data-lista="${m.lista || ""}" data-fabricante="${escapeHtml(m.fabricante || "")}" ${m.id === preselectedMedId ? "selected" : ""}>
-            ${escapeHtml(m.nome)} — ${m.lista}
-          </option>`,
-          )
-          .join("")}
+        ${medicationOptions}
       </select>
     </td>
     <td>
@@ -610,6 +682,9 @@ function getMedicationsFromRows() {
   const tbody = document.getElementById("medications-list-tbody");
   if (!tbody) return [];
 
+  const tipo = document.getElementById("mov-tipo")?.value;
+  const isSaida = ["saida", "devolucao"].includes(tipo);
+
   const medications = [];
   const rows = tbody.querySelectorAll("tr");
 
@@ -619,14 +694,21 @@ function getMedicationsFromRows() {
 
     if (select && select.value && quantityInput && quantityInput.value) {
       const selectedOption = select.options[select.selectedIndex];
-      medications.push({
+      const medData = {
         id: select.value,
         nome: selectedOption.text.split(" — ")[0],
         lista: selectedOption.dataset.lista || "",
         qtdAtual: parseInt(selectedOption.dataset.qtd) || 0,
         unidade: selectedOption.dataset.unidade || "",
         quantidade: parseInt(quantityInput.value) || 0,
-      });
+      };
+
+      // Se for saída, incluir o lote do data-attribute
+      if (isSaida && selectedOption.dataset.lote) {
+        medData.numeroLote = selectedOption.dataset.lote;
+      }
+
+      medications.push(medData);
     }
   });
 
@@ -693,6 +775,12 @@ async function saveMovement(formData) {
   // Validar validade para entradas
   if (tipo === "entrada" && !formData.get("validade")) {
     setErr("err-mov-validade", "Informe a validade deste lote.");
+    valid = false;
+  }
+
+  // Validar lote para entradas
+  if (tipo === "entrada" && !formData.get("numeroLoteEntrada")?.trim()) {
+    setErr("err-mov-medications", "Informe o número do lote para entrada.");
     valid = false;
   }
 
@@ -779,12 +867,24 @@ async function saveMovement(formData) {
     const createdMovements = [];
     for (let i = 0; i < medications.length; i++) {
       const med = medications[i];
+
+      // Capturar número do lote conforme o tipo de movimentação
+      let numeroLote = null;
+      if (tipo === "entrada") {
+        numeroLote = formData.get("numeroLoteEntrada")?.trim();
+      } else if (["saida", "devolucao"].includes(tipo) && med.numeroLote) {
+        numeroLote = med.numeroLote; // Vem do select de lote
+      } else if (formData.get("numeroLoteSaida")?.trim()) {
+        numeroLote = formData.get("numeroLoteSaida")?.trim();
+      }
+
       const movData = {
         ...commonData,
         medicamentoId: med.id,
         medicamentoNome: med.nome,
         medicamentoLista: med.lista,
         quantidade: med.quantidade,
+        numeroLote: numeroLote,
         protocolo:
           medications.length > 1 ? `${baseProtocol}-${i + 1}` : baseProtocol,
       };
@@ -806,7 +906,7 @@ async function saveMovement(formData) {
           action: `MOVEMENT_${tipo.toUpperCase()}`,
           module: "movements",
           recordId: movId,
-          details: `${labelTipoMovimento(tipo)}: ${med.quantidade}x ${med.nome}. Lote: ${movData.protocolo}`,
+          details: `${labelTipoMovimento(tipo)}: ${med.quantidade}x ${med.nome}. Protocolo: ${movData.protocolo}`,
         });
       } catch (auditErr) {
         console.warn("Erro ao registrar auditoria:", auditErr);
@@ -849,7 +949,7 @@ async function saveMovement(formData) {
     showToast(
       causa === "desvio" ? "warning" : "success",
       `${medications.length} ${labelTipoMovimento(tipo)}(s) registrada(s)!`,
-      `Lote: ${baseProtocol}${causa === "desvio" ? " — NOTIFICAR VISA!" : ""}`,
+      `Protocolo: ${baseProtocol}${causa === "desvio" ? " — NOTIFICAR VISA!" : ""}`,
     );
   } catch (err) {
     showToast("error", "Erro ao registrar", err.message);
@@ -961,6 +1061,7 @@ function renderMovsTable(movs) {
       <td>
         <div class="cell-primary">${escapeHtml(mov.medicamentoNome || "—")}</div>
         ${mov.medicamentoLista ? `<span class="badge badge-sm ${badgeClassLista(mov.medicamentoLista)}">${mov.medicamentoLista}</span>` : ""}
+        ${mov.numeroLote ? `<div class="cell-secondary text-muted">📦 Lote: ${escapeHtml(mov.numeroLote)}</div>` : ""}
         ${mov.sncr ? `<div class="cell-secondary text-muted">SNCR: ${escapeHtml(mov.sncr)}</div>` : ""}
         ${mov.validade && mov.tipo === "entrada" ? `<div class="cell-secondary text-muted">Validade: ${formatDate(mov.validade)}</div>` : ""}
         ${mov.fornecedor && mov.tipo === "entrada" ? `<div class="cell-secondary text-muted">Fornecedor: ${escapeHtml(mov.fornecedor)}</div>` : ""}
@@ -1052,7 +1153,8 @@ function renderKPIsMovements(movs) {
 
 function exportMovementsCSV() {
   const data = movsCache.map((m) => ({
-    Lote: m.protocolo || "",
+    "Nº Lote": m.numeroLote || "",
+    Protocolo: m.protocolo || "",
     "Data/Hora": formatDateTime(m.dataHora),
     Tipo: labelTipoMovimento(m.tipo),
     Medicamento: m.medicamentoNome || "",

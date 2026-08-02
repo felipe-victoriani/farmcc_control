@@ -25,6 +25,7 @@ import {
   debounce,
   formatNumber,
   escapeHtml,
+  badgeClassLista,
 } from "../shared/utils.js";
 
 // ============================================================
@@ -785,9 +786,16 @@ async function openDayDetailPanel(dayId) {
                     (m) => `
                   <tr>
                     <td>${formatDateTime(m.dataHora)}</td>
-                    <td>${escapeHtml(m.medicamentoNome || "—")}</td>
-                    <td><code>${escapeHtml(m.protocolo || "—")}</code></td>
-                    <td>${m.quantidade || 0}</td>
+                    <td>
+                      <div class="cell-primary">${escapeHtml(m.medicamentoNome || "—")}</div>
+                      ${m.medicamentoLista ? `<span class="badge badge-sm ${badgeClassLista(m.medicamentoLista)}">${m.medicamentoLista}</span>` : ""}
+                    </td>
+                    <td>
+                      ${m.numeroLote ? `<div class="cell-primary"><code>📦 ${escapeHtml(m.numeroLote)}</code></div>` : ""}
+                      ${m.protocolo ? `<div class="cell-secondary text-muted" style="font-size: 0.75rem;">Protocolo: ${escapeHtml(m.protocolo)}</div>` : ""}
+                      ${!m.numeroLote && !m.protocolo ? "—" : ""}
+                    </td>
+                    <td class="text-right fw-600">${m.quantidade || 0}</td>
                   </tr>
                 `,
                   )

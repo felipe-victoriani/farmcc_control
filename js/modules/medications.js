@@ -77,6 +77,9 @@ function buildMedicationsHTML() {
         <p class="section-subtitle">Controle conforme Portaria SVS/MS n° 344/98</p>
       </div>
       <div class="section-actions">
+        <button class="btn btn-secondary btn-sm" id="btn-recalc-stock" title="Recalcular estoque baseado nas movimentações">
+          ${icon("refresh", "icon icon-sm")} Recalcular Estoque
+        </button>
         <button class="btn btn-secondary btn-sm" id="btn-export-meds">
           ${icon("download", "icon icon-sm")} Exportar CSV
         </button>
@@ -789,7 +792,7 @@ export async function openMedicationHistory(medId) {
             <div class="timeline-content">
               <p class="timeline-title">${labelTipoMovimento(mov.tipo)} — ${formatNumber(mov.quantidade)} ${escapeHtml(med?.unidade || "")}</p>
               <p class="timeline-sub">${formatDateTime(mov.dataHora)}</p>
-              ${mov.protocolo ? `<p class="timeline-sub">Protocolo: ${escapeHtml(mov.protocolo)}</p>` : ""}
+              ${mov.numeroLote ? `<p class="timeline-sub">📦 Lote: ${escapeHtml(mov.numeroLote)}</p>` : ""}
               ${mov.pacienteNome ? `<p class="timeline-sub">Paciente: ${escapeHtml(mov.pacienteNome)}</p>` : ""}
               ${mov.registradoPorNome ? `<p class="timeline-sub">Por: ${escapeHtml(mov.registradoPorNome)}</p>` : ""}
               ${mov.justificativa ? `<p class="timeline-sub text-muted">${escapeHtml(mov.justificativa)}</p>` : ""}
@@ -808,6 +811,95 @@ export async function openMedicationHistory(medId) {
 function closeHistoryPanel() {
   document.getElementById("side-panel-history")?.classList.remove("open");
   document.getElementById("side-panel-overlay")?.classList.add("hidden");
+}
+
+// ============================================================
+// RECALCULAR ESTOQUE
+// ============================================================
+
+/**
+ * Recalcula o estoque de todos os medicamentos baseado nas movimentações registradas.
+ * Útil para corrigir inconsistências causadas por lotes diferentes.
+ */
+export async function recalcularEstoqueGeral() {
+  const profile = getSessionProfile();
+  if (!profile) return;
+
+  const confirmacao = confirm(
+    "Recalcular o estoque de TODOS os medicamentos baseado nas movimentações registradas?\n\n" +
+      "Isso irá:\n" +
+      "✓ Somar todas as entradas e devoluções\n" +
+      "✓ Subtrair todas as saídas, perdas e descartes\n" +
+      "✓ Atualizar o estoque atual (qtdAtual)\n\n" +
+      "NOTA: Medicamentos com lotes diferentes serão somados em um único estoque total.\n\n" +
+      "Deseja continuar?",
+  );
+
+  if (!confirmacao) return;
+
+  try {
+    showToast("info", "Recalculando estoque...", "Processando movimentações");
+
+    // Buscar todos os medicamentos e movimentações
+    const [rawMeds, rawMovs] = await Promise.all([
+      dbReadAll("medications"),
+      dbReadAll("movements"),
+    ]);
+
+    const meds = snapshotToArray(rawMeds);
+    const movs = snapshotToArray(rawMovs).filter(
+      (m) => m.status !== "cancelado",
+    );
+
+    let contadorAtualizado = 0;
+
+    for (const med of meds) {
+      // Filtrar movimentações deste medicamento
+      const movsDoMed = movs.filter((m) => m.medicamentoId === med.id);
+
+      // Calcular estoque baseado nas movimentações
+      const entradas = movsDoMed
+        .filter((m) => ["entrada", "devolucao"].includes(m.tipo))
+        .reduce((soma, m) => soma + (Number(m.quantidade) || 0), 0);
+
+      const saidas = movsDoMed
+        .filter((m) => ["saida", "perda", "descarte"].includes(m.tipo))
+        .reduce((soma, m) => soma + (Number(m.quantidade) || 0), 0);
+
+      const estoqueCalculado = entradas - saidas;
+
+      // Se for diferente do estoque atual, atualizar
+      if (estoqueCalculado !== (med.qtdAtual || 0)) {
+        await dbUpdate("medications", med.id, {
+          qtdAtual: estoqueCalculado,
+          atualizadoEm: new Date().toISOString(),
+          atualizadoPor: profile.uid,
+        });
+        contadorAtualizado++;
+      }
+    }
+
+    await auditLog({
+      uid: profile.uid || "",
+      userName: profile.nome,
+      action: "RECALC_STOCK",
+      module: "medications",
+      recordId: "ALL",
+      details: `Recalculou estoque de ${contadorAtualizado} medicamentos`,
+    });
+
+    showToast(
+      "success",
+      "Estoque recalculado!",
+      `${contadorAtualizado} medicamentos atualizados`,
+    );
+
+    // Recarregar a lista
+    await loadMedications();
+  } catch (err) {
+    console.error("Erro ao recalcular estoque:", err);
+    showToast("error", "Erro!", "Não foi possível recalcular o estoque");
+  }
 }
 
 // ============================================================
@@ -850,6 +942,11 @@ function setupMedicationsListeners() {
   document
     .getElementById("btn-export-meds")
     ?.addEventListener("click", exportMedicationsCSV);
+
+  // Recalcular estoque
+  document
+    .getElementById("btn-recalc-stock")
+    ?.addEventListener("click", recalcularEstoqueGeral);
 
   // Formulário de salvar
   document
