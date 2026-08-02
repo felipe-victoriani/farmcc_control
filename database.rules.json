@@ -1,6 +1,101 @@
 {
   "rules": {
-    ".read": "auth != null",
-    ".write": "auth != null"
+    "users": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && (
+          auth.uid == $uid ||
+          root.child('users').child(auth.uid).child('role').val() == 'ADMIN' ||
+          root.child('users').child(auth.uid).child('role').val() == 'FARMACEUTICO_RT'
+        )"
+      }
+    },
+    "medications": {
+      ".read": "auth != null",
+      ".indexOn": ["lista", "validade", "qtdAtual", "status", "nome"],
+      "$medId": {
+        ".write": "auth != null && (
+          root.child('users').child(auth.uid).child('role').val() == 'ADMIN' ||
+          root.child('users').child(auth.uid).child('role').val() == 'FARMACEUTICO_RT' ||
+          root.child('users').child(auth.uid).child('role').val() == 'FARMACEUTICO' ||
+          root.child('users').child(auth.uid).child('role').val() == 'TECNICO_FARMACIA' ||
+          root.child('users').child(auth.uid).child('role').val() == 'ENFERMEIRO_RT'
+        )",
+        ".validate": "newData.hasChildren(['nome', 'lista', 'unidade', 'qtdAtual'])"
+      }
+    },
+    "movements": {
+      ".read": "auth != null",
+      ".indexOn": ["medicamentoId", "dataHora", "tipo", "status", "registradoPor"],
+      "$movId": {
+        ".write": "auth != null && (
+          root.child('users').child(auth.uid).child('role').val() == 'ADMIN' ||
+          root.child('users').child(auth.uid).child('role').val() == 'FARMACEUTICO_RT' ||
+          root.child('users').child(auth.uid).child('role').val() == 'FARMACEUTICO' ||
+          root.child('users').child(auth.uid).child('role').val() == 'TECNICO_FARMACIA' ||
+          root.child('users').child(auth.uid).child('role').val() == 'MEDICO_ANESTESISTA' ||
+          root.child('users').child(auth.uid).child('role').val() == 'ENFERMEIRO_RT'
+        )",
+        ".validate": "newData.hasChildren(['tipo', 'medicamentoId', 'quantidade', 'registradoPor'])"
+      }
+    },
+    "patients": {
+      ".read": "auth != null",
+      ".indexOn": ["nome", "prontuario", "criadoEm"],
+      "$patId": {
+        ".write": "auth != null && (
+          root.child('users').child(auth.uid).child('role').val() == 'ADMIN' ||
+          root.child('users').child(auth.uid).child('role').val() == 'FARMACEUTICO_RT' ||
+          root.child('users').child(auth.uid).child('role').val() == 'FARMACEUTICO' ||
+          root.child('users').child(auth.uid).child('role').val() == 'MEDICO_ANESTESISTA' ||
+          root.child('users').child(auth.uid).child('role').val() == 'ENFERMEIRO_RT'
+        )"
+      }
+    },
+    "surgical_days": {
+      ".read": "auth != null",
+      ".indexOn": ["data", "criadoEm"],
+      "$dayId": {
+        ".write": "auth != null && (
+          root.child('users').child(auth.uid).child('role').val() == 'ADMIN' ||
+          root.child('users').child(auth.uid).child('role').val() == 'FARMACEUTICO_RT' ||
+          root.child('users').child(auth.uid).child('role').val() == 'FARMACEUTICO' ||
+          root.child('users').child(auth.uid).child('role').val() == 'MEDICO_ANESTESISTA' ||
+          root.child('users').child(auth.uid).child('role').val() == 'ENFERMEIRO_RT'
+        )"
+      }
+    },
+    "residues": {
+      ".read": "auth != null",
+      ".indexOn": ["tipo", "dataDescarte", "criadoEm"],
+      "$resId": {
+        ".write": "auth != null && (
+          root.child('users').child(auth.uid).child('role').val() == 'ADMIN' ||
+          root.child('users').child(auth.uid).child('role').val() == 'FARMACEUTICO_RT' ||
+          root.child('users').child(auth.uid).child('role').val() == 'FARMACEUTICO' ||
+          root.child('users').child(auth.uid).child('role').val() == 'TECNICO_FARMACIA' ||
+          root.child('users').child(auth.uid).child('role').val() == 'ENFERMEIRO_RT'
+        )"
+      }
+    },
+    "audit_log": {
+      ".read": "auth != null && (
+        root.child('users').child(auth.uid).child('role').val() == 'ADMIN' ||
+        root.child('users').child(auth.uid).child('role').val() == 'FARMACEUTICO_RT' ||
+        root.child('users').child(auth.uid).child('role').val() == 'GESTOR'
+      )",
+      ".indexOn": ["timestamp", "uid", "action", "module"],
+      "$logId": {
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['uid', 'action', 'timestamp'])"
+      }
+    },
+    "settings": {
+      ".read": "auth != null",
+      ".write": "auth != null && (
+        root.child('users').child(auth.uid).child('role').val() == 'ADMIN' ||
+        root.child('users').child(auth.uid).child('role').val() == 'FARMACEUTICO_RT'
+      )"
+    }
   }
 }

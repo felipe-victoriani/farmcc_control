@@ -2,11 +2,15 @@
  * @file firebase-config.js
  * @description Configuração e inicialização do Firebase SDK v10 (modular)
  *
- * INSTRUÇÕES DE CONFIGURAÇÃO:
- * 1. Acesse console.firebase.google.com
- * 2. Selecione seu projeto → Configurações → Seus apps → Web
- * 3. Copie o objeto firebaseConfig e cole abaixo, substituindo os placeholders
- * 4. Certifique-se de que o domínio está autorizado em Authentication → Settings
+ * 🔒 CONFIGURAÇÃO SEGURA:
+ * - As credenciais agora estão em firebase-config-local.js (não commitado)
+ * - Se o arquivo local não existir, copie firebase-config-local.template.js
+ * - NUNCA commite credenciais reais no repositório
+ *
+ * SETUP INICIAL:
+ * 1. Copie: firebase-config-local.template.js → firebase-config-local.js
+ * 2. Preencha firebase-config-local.js com credenciais do console.firebase.google.com
+ * 3. O arquivo local está protegido no .gitignore
  */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -21,22 +25,15 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // ================================================================
-// PREENCHA COM AS CREDENCIAIS DO SEU PROJETO FIREBASE
-// Console Firebase → Configurações do Projeto → Seus apps → Web
+// IMPORTAR CREDENCIAIS DO ARQUIVO LOCAL (NÃO COMMITADO)
 // ================================================================
-const firebaseConfig = {
-  apiKey: "AIzaSyARRlHgnSmqhagK-WO2Xk51WnrfTOamOsE",
-  authDomain: "farmacia-cc.firebaseapp.com",
-  databaseURL: "https://farmacia-cc-default-rtdb.firebaseio.com",
-  projectId: "farmacia-cc",
-  storageBucket: "farmacia-cc.firebasestorage.app",
-  messagingSenderId: "703841961713",
-  appId: "1:703841961713:web:6a8f273210c536af874b50",
-};
-// ================================================================
+import { firebaseConfig } from "./firebase-config-local.js";
 
-// Detectar se ainda está usando valores placeholder (sem Firebase configurado)
-const IS_PLACEHOLDER_CONFIG = firebaseConfig.apiKey.startsWith("COLE_");
+// Detectar se ainda está usando valores placeholder
+const IS_PLACEHOLDER_CONFIG =
+  !firebaseConfig.apiKey ||
+  firebaseConfig.apiKey.startsWith("your_") ||
+  firebaseConfig.apiKey.startsWith("COLE_");
 
 // Inicializar Firebase
 const firebaseApp = initializeApp(firebaseConfig);

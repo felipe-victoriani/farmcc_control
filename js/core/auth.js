@@ -12,6 +12,7 @@ import {
   onAuthStateChanged,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getUserProfile, updateLastLogin, auditLog } from "./db.js";
+import { AUTH_CONFIG } from "../shared/constants.js";
 
 // ============================================================
 // ESTADO GLOBAL DE SESSÃO
@@ -22,8 +23,6 @@ const session = { user: null, profile: null };
 
 // Contador de tentativas de login (em memória – limpo ao recarregar)
 const loginAttempts = { count: 0, lockedUntil: 0 };
-const MAX_ATTEMPTS = 5;
-const LOCK_DURATION = 15 * 60 * 1000; // 15 minutos
 
 // ============================================================
 // PERMISSÕES POR ROLE
@@ -182,7 +181,7 @@ export function currentUserCan(action) {
 
 /**
  * Efetua login com email e senha.
- * Controla tentativas e bloqueia após MAX_ATTEMPTS falhas.
+ * Controla tentativas e bloqueia após AUTH_CONFIG.MAX_LOGIN_ATTEMPTS falhas.
  * @param {string} email
  * @param {string} password
  * @returns {Promise<{user: Object, profile: Object}>}
@@ -247,13 +246,13 @@ export async function loginUser(email, password) {
       credentialErrors.some((c) => err.code?.includes(c.replace("auth/", "")))
     ) {
       loginAttempts.count++;
-      if (loginAttempts.count >= MAX_ATTEMPTS) {
-        loginAttempts.lockedUntil = Date.now() + LOCK_DURATION;
+      if (loginAttempts.count >= AUTH_CONFIG.MAX_LOGIN_ATTEMPTS) {
+        loginAttempts.lockedUntil = Date.now() + AUTH_CONFIG.LOCK_DURATION_MS;
         throw new Error(
           `Número máximo de tentativas atingido. Acesso bloqueado por 15 minutos.`,
         );
       }
-      const remaining = MAX_ATTEMPTS - loginAttempts.count;
+      const remaining = AUTH_CONFIG.MAX_LOGIN_ATTEMPTS - loginAttempts.count;
       throw new Error(
         `Credenciais inválidas. ${remaining} tentativa(s) restante(s).`,
       );

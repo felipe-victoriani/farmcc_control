@@ -25,6 +25,9 @@ import {
 // Verificar se o banco está disponível
 const isDbAvailable = () => db !== null;
 
+// Constantes de configuração
+const DEFAULT_QUERY_LIMIT = 1000; // Limite padrão para prevenir queries muito grandes
+
 // ============================================================
 // OPERAÇÕES GENÉRICAS CRUD
 // ============================================================
@@ -45,14 +48,17 @@ export async function dbCreate(path, data) {
 
 /**
  * Lê todos os registros de um caminho.
+ * ATENÇÃO: Por segurança e performance, usa limite padrão de 1000 registros.
+ * Para queries sem limite, passe explicitamente limit=Infinity (não recomendado).
  * @param {string} path
- * @param {number} [limit] - Máximo de registros (padrão: sem limite para coleções pequenas)
+ * @param {number} [limit=1000] - Máximo de registros (padrão: 1000)
  * @returns {Promise<Object|null>}
  */
-export async function dbReadAll(path, limit = null) {
+export async function dbReadAll(path, limit = DEFAULT_QUERY_LIMIT) {
   if (!isDbAvailable()) return null;
   const baseRef = ref(db, path);
-  const q = limit ? query(baseRef, limitToLast(limit)) : baseRef;
+  const q =
+    limit && limit !== Infinity ? query(baseRef, limitToLast(limit)) : baseRef;
   const snap = await get(q);
   return snap.exists() ? snap.val() : null;
 }

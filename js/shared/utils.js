@@ -4,6 +4,8 @@
  * Todos os formatos seguem o padrão pt-BR (DD/MM/AAAA, separador decimal vírgula).
  */
 
+import { VALIDADE_THRESHOLD, DEBOUNCE_DELAYS } from "./constants.js";
+
 // ============================================================
 // FORMATADORES DE DATA E HORA
 // ============================================================
@@ -71,9 +73,9 @@ export function diasRestantes(validade) {
  */
 export function classificarValidade(validade) {
   const dias = diasRestantes(validade);
-  if (dias < 0) return "expired";
-  if (dias <= 30) return "urgent";
-  if (dias <= 90) return "warning";
+  if (dias < VALIDADE_THRESHOLD.VENCIDO) return "expired";
+  if (dias <= VALIDADE_THRESHOLD.URGENTE) return "urgent";
+  if (dias <= VALIDADE_THRESHOLD.ALERTA) return "warning";
   return "ok";
 }
 
@@ -446,7 +448,7 @@ export function snapshotToArray(snapshot) {
  * @param {number} delay
  * @returns {Function}
  */
-export function debounce(fn, delay = 300) {
+export function debounce(fn, delay = DEBOUNCE_DELAYS.SEARCH) {
   let timer;
   return function (...args) {
     clearTimeout(timer);

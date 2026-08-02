@@ -261,25 +261,14 @@ function renderDaysTable(days) {
     .map((d) => {
       const qtdPacientes = d.pacientes?.length || 0;
 
-      // Debug: verificar dados dos pacientes
-      console.log("📋 Dia:", d.data);
-      console.log("📋 Pacientes RAW:", JSON.stringify(d.pacientes, null, 2));
-
       // Montar lista de nomes para o tooltip
       let todosNomes = "Sem pacientes";
 
       if (d.pacientes && Array.isArray(d.pacientes) && d.pacientes.length > 0) {
         todosNomes = d.pacientes
           .map((p, index) => {
-            console.log(`\n👤 Paciente ${index}:`);
-            console.log("  - Valor completo:", p);
-            console.log("  - Tipo:", typeof p);
-            console.log("  - p.nome:", p?.nome);
-            console.log("  - p.prontuario:", p?.prontuario);
-
             // Se p é uma string (dados antigos)
             if (typeof p === "string") {
-              console.log("  ⚠️ É string antiga:", p);
               return `• ${escapeHtml(p)}`;
             }
 
@@ -289,20 +278,14 @@ function renderDaysTable(days) {
               const prontuario = p.prontuario
                 ? ` (${escapeHtml(p.prontuario)})`
                 : "";
-              const resultado = `• ${escapeHtml(nome)}${prontuario}`;
-              console.log("  ✅ Resultado:", resultado);
-              return resultado;
+              return `• ${escapeHtml(nome)}${prontuario}`;
             }
 
             // Fallback para dados inválidos
-            console.log("  ❌ Dados inválidos, usando fallback");
             return `• Paciente ${index + 1}`;
           })
           .join("<br>");
       }
-
-      console.log("\n📝 HTML FINAL do tooltip:", todosNomes);
-      console.log("🔢 Quantidade de pacientes:", qtdPacientes);
 
       return `
     <tr>
@@ -403,27 +386,21 @@ function setupSurgicalDaysListeners() {
     tbody.addEventListener("mouseover", (e) => {
       const btn = e.target.closest(".patient-icon-btn");
       if (!btn) return;
-      console.log("🔍 Mouse SOBRE o botão de pacientes");
       const container = btn.closest(".patient-icon-container");
       if (!container) return;
       const tooltip = container.querySelector(".patient-tooltip");
       if (tooltip) {
-        console.log("✅ Mostrando tooltip");
         tooltip.style.display = "block";
-      } else {
-        console.warn("⚠️ Tooltip não encontrado");
       }
     });
 
     tbody.addEventListener("mouseout", (e) => {
       const btn = e.target.closest(".patient-icon-btn");
       if (!btn) return;
-      console.log("🔍 Mouse SAIU do botão de pacientes");
       const container = btn.closest(".patient-icon-container");
       if (!container) return;
       const tooltip = container.querySelector(".patient-tooltip");
       if (tooltip) {
-        console.log("✅ Escondendo tooltip");
         tooltip.style.display = "none";
       }
     });
@@ -550,14 +527,10 @@ function collectPatients() {
     const nome = row.querySelector(".patient-name")?.value.trim();
     const prontuario = row.querySelector(".patient-prontuario")?.value.trim();
 
-    console.log(`📝 Coletando paciente ${index}:`, { nome, prontuario });
-
     if (nome) {
       patients.push({ nome, prontuario: prontuario || "" });
     }
   });
-
-  console.log("📦 Pacientes coletados:", patients);
   return patients;
 }
 
