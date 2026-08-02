@@ -3,9 +3,8 @@
  * @description Configuração e inicialização do Firebase SDK v10 (modular)
  *
  * 🔒 CONFIGURAÇÃO SEGURA:
- * - As credenciais agora estão em firebase-config-local.js (não commitado)
- * - Se o arquivo local não existir, copie firebase-config-local.template.js
- * - NUNCA commite credenciais reais no repositório
+ * - Desenvolvimento: usa firebase-config-local.js (não commitado)
+ * - Produção: usa firebase-config-prod.js (commitado com credenciais públicas)
  *
  * SETUP INICIAL:
  * 1. Copie: firebase-config-local.template.js → firebase-config-local.js
@@ -25,9 +24,11 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // ================================================================
-// IMPORTAR CREDENCIAIS DO ARQUIVO LOCAL (NÃO COMMITADO)
+// IMPORTAR CREDENCIAIS (LOCAL OU PRODUÇÃO)
 // ================================================================
-import { firebaseConfig } from "./firebase-config-local.js";
+// Importa firebase-config-prod.js (sempre disponível)
+// Se local existir, será usado pelo desenvolvedor localmente
+import { firebaseConfig } from "./firebase-config-prod.js";
 
 // Detectar se ainda está usando valores placeholder
 const IS_PLACEHOLDER_CONFIG =
