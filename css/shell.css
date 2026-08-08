@@ -427,6 +427,10 @@ body.is-offline .app-layout {
   color: var(--color-text-muted);
 }
 
+.empty-state-action {
+  margin-top: var(--space-2);
+}
+
 /* ----------------------------------------------------------
    KPI card — variantes
 ---------------------------------------------------------- */

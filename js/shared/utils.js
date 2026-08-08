@@ -612,6 +612,35 @@ export function calcularSaldo(movimentos) {
 // ============================================================
 
 /**
+ * Traduz erros técnicos (Firebase, rede) para mensagens compreensíveis ao usuário final.
+ * Usar em vez de exibir err.message diretamente em showToast().
+ * @param {Error|{message?: string, code?: string}} err
+ * @returns {string}
+ */
+export function friendlyError(err) {
+  const raw = String(err?.code || err?.message || "");
+  const rules = [
+    [
+      /permission_denied|permission-denied/i,
+      "Você não tem permissão para realizar esta ação.",
+    ],
+    [
+      /network|failed to fetch|offline/i,
+      "Falha de conexão. Verifique sua internet e tente novamente.",
+    ],
+    [/timeout|disconnected/i, "A operação demorou demais. Tente novamente."],
+    [
+      /quota|resource-exhausted/i,
+      "Limite do sistema atingido. Tente novamente em instantes.",
+    ],
+  ];
+  for (const [pattern, msg] of rules) {
+    if (pattern.test(raw)) return msg;
+  }
+  return err?.message || "Ocorreu um erro inesperado. Tente novamente.";
+}
+
+/**
  * Escapa caracteres especiais HTML para prevenir XSS.
  * @param {*} str
  * @returns {string}

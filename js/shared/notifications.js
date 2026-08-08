@@ -202,8 +202,190 @@ export function updateAlertBadges(count) {
 }
 
 // ============================================================
+// CONFIRMAÇÃO / PROMPT (substitutos de confirm()/prompt() nativos)
+// ============================================================
+
+/**
+ * Exibe um modal de confirmação estilizado (substitui window.confirm).
+ * @param {Object} opts
+ * @param {string} [opts.title='Confirmar ação']
+ * @param {string} [opts.message='']
+ * @param {Array<{label:string,value:*}>|string} [opts.details] - Linhas de detalhe do registro afetado
+ * @param {string} [opts.confirmLabel='Confirmar']
+ * @param {string|null} [opts.cancelLabel='Cancelar'] - Passe null para ocultar (modo apenas "OK")
+ * @param {boolean} [opts.danger=false]
+ * @returns {Promise<boolean>}
+ */
+export function confirmDialog({
+  title = "Confirmar ação",
+  message = "",
+  details = null,
+  confirmLabel = "Confirmar",
+  cancelLabel = "Cancelar",
+  danger = false,
+} = {}) {
+  return new Promise((resolve) => {
+    document.getElementById("app-confirm-dialog")?.remove();
+
+    const detailsHTML = renderDialogDetails(details);
+    const modal = document.createElement("dialog");
+    modal.id = "app-confirm-dialog";
+    modal.className = "modal";
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "app-confirm-title");
+    modal.innerHTML = `
+      <div class="modal-content modal-sm">
+        <div class="modal-header" style="background:${danger ? "var(--color-danger-dim)" : "var(--color-warning-dim)"}">
+          <h2 class="modal-title" id="app-confirm-title" style="color:${danger ? "var(--color-danger)" : "var(--color-warning)"}">${escapeHtml(title)}</h2>
+        </div>
+        <div class="modal-body">
+          <p>${escapeHtml(message)}</p>
+          ${detailsHTML}
+        </div>
+        <div class="modal-footer">
+          ${cancelLabel ? `<button type="button" class="btn btn-secondary" data-confirm-cancel>${escapeHtml(cancelLabel)}</button>` : ""}
+          <button type="button" class="btn ${danger ? "btn-danger" : "btn-primary"}" data-confirm-ok>${escapeHtml(confirmLabel)}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.showModal();
+    modal.querySelector("[data-confirm-ok]")?.focus();
+
+    const finish = (result) => {
+      modal.close();
+      modal.remove();
+      resolve(result);
+    };
+    modal
+      .querySelector("[data-confirm-cancel]")
+      ?.addEventListener("click", () => finish(false));
+    modal
+      .querySelector("[data-confirm-ok]")
+      ?.addEventListener("click", () => finish(true));
+    modal.addEventListener("cancel", (e) => {
+      e.preventDefault();
+      finish(false);
+    });
+  });
+}
+
+/**
+ * Exibe um modal para captura de texto obrigatório (substitui window.prompt).
+ * @param {Object} opts
+ * @param {string} [opts.title='Informe o motivo']
+ * @param {string} [opts.message='']
+ * @param {Array<{label:string,value:*}>|string} [opts.details] - Linhas de detalhe do registro afetado
+ * @param {string} [opts.label='Motivo']
+ * @param {string} [opts.placeholder='']
+ * @param {boolean} [opts.required=true]
+ * @param {string} [opts.confirmLabel='Confirmar']
+ * @param {string} [opts.cancelLabel='Cancelar']
+ * @param {boolean} [opts.danger=false]
+ * @returns {Promise<string|null>} Texto informado, ou null se cancelado/vazio
+ */
+export function promptDialog({
+  title = "Informe o motivo",
+  message = "",
+  details = null,
+  label = "Motivo",
+  placeholder = "",
+  required = true,
+  confirmLabel = "Confirmar",
+  cancelLabel = "Cancelar",
+  danger = false,
+} = {}) {
+  return new Promise((resolve) => {
+    document.getElementById("app-prompt-dialog")?.remove();
+
+    const detailsHTML = renderDialogDetails(details);
+    const modal = document.createElement("dialog");
+    modal.id = "app-prompt-dialog";
+    modal.className = "modal";
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "app-prompt-title");
+    modal.innerHTML = `
+      <div class="modal-content modal-sm">
+        <div class="modal-header" style="background:${danger ? "var(--color-danger-dim)" : "var(--color-warning-dim)"}">
+          <h2 class="modal-title" id="app-prompt-title" style="color:${danger ? "var(--color-danger)" : "var(--color-warning)"}">${escapeHtml(title)}</h2>
+        </div>
+        <div class="modal-body">
+          ${message ? `<p class="mb-2">${escapeHtml(message)}</p>` : ""}
+          ${detailsHTML}
+          <div class="form-group mt-2">
+            <label class="form-label" for="app-prompt-value">${escapeHtml(label)} ${required ? '<span class="required">*</span>' : ""}</label>
+            <textarea id="app-prompt-value" class="form-input form-textarea" rows="3" placeholder="${escapeHtml(placeholder)}"></textarea>
+            <span class="form-error" id="app-prompt-error"></span>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-prompt-cancel>${escapeHtml(cancelLabel)}</button>
+          <button type="button" class="btn ${danger ? "btn-danger" : "btn-primary"}" data-prompt-ok>${escapeHtml(confirmLabel)}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.showModal();
+    const textarea = modal.querySelector("#app-prompt-value");
+    textarea?.focus();
+
+    const finish = (result) => {
+      modal.close();
+      modal.remove();
+      resolve(result);
+    };
+    modal
+      .querySelector("[data-prompt-cancel]")
+      ?.addEventListener("click", () => finish(null));
+    modal.querySelector("[data-prompt-ok]")?.addEventListener("click", () => {
+      const value = textarea.value.trim();
+      if (required && !value) {
+        modal.querySelector("#app-prompt-error").textContent =
+          "Este campo é obrigatório.";
+        textarea.classList.add("error");
+        return;
+      }
+      finish(value);
+    });
+    modal.addEventListener("cancel", (e) => {
+      e.preventDefault();
+      finish(null);
+    });
+  });
+}
+
+function renderDialogDetails(details) {
+  if (!details) return "";
+  if (typeof details === "string") return details;
+  if (Array.isArray(details)) {
+    return `<div class="confirm-details">${details
+      .map(
+        (d) =>
+          `<div class="confirm-details-row"><span class="confirm-details-label">${escapeHtml(d.label)}</span><span class="confirm-details-value">${escapeHtml(String(d.value ?? "—"))}</span></div>`,
+      )
+      .join("")}</div>`;
+  }
+  return "";
+}
+
+// ============================================================
 // MODAL DE ALERTAS CRÍTICOS
 // ============================================================
+
+/**
+ * Filtra apenas os alertas de severidade crítica/urgente de um conjunto de alertas.
+ * @param {{expiry: Alert[], stock: Alert[]}} alerts
+ * @returns {Alert[]}
+ */
+export function getCriticalAlerts(alerts) {
+  if (!alerts || typeof alerts !== "object") return [];
+  return [
+    ...(alerts.expiry || []).filter(
+      (a) => a.severity === "critical" || a.severity === "urgent",
+    ),
+    ...(alerts.stock || []).filter((a) => a.severity === "critical"),
+  ];
+}
 
 /**
  * Exibe modal com alertas críticos na abertura do sistema.
@@ -216,12 +398,7 @@ export function showAlertsModal(alerts) {
     return;
   }
 
-  const critical = [
-    ...(alerts.expiry || []).filter(
-      (a) => a.severity === "critical" || a.severity === "urgent",
-    ),
-    ...(alerts.stock || []).filter((a) => a.severity === "critical"),
-  ];
+  const critical = getCriticalAlerts(alerts);
 
   // Remover modal anterior se existir
   const existing = document.getElementById("critical-alerts-modal");
@@ -237,7 +414,7 @@ export function showAlertsModal(alerts) {
   if (!critical.length) {
     modal.innerHTML = `
       <div class="modal-content">
-        <div class="modal-header" style="background:var(--color-success-light)">
+        <div class="modal-header" style="background:var(--color-success-dim)">
           <h2 class="modal-title" id="critical-alerts-title" style="color:var(--color-success)">
             ✓ Nenhum Alerta Crítico
           </h2>
@@ -287,7 +464,7 @@ export function showAlertsModal(alerts) {
 
     modal.innerHTML = `
       <div class="modal-content modal-lg">
-        <div class="modal-header" style="background:var(--color-danger-light)">
+        <div class="modal-header" style="background:var(--color-danger-dim)">
           <h2 class="modal-title" id="critical-alerts-title" style="color:var(--color-danger)">
             ⚠ Alertas Críticos (${critical.length})
           </h2>

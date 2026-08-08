@@ -6,7 +6,7 @@
 import { dbRead, dbSet, auditLog } from "../core/db.js";
 import { getSessionProfile } from "../core/auth.js";
 import { showToast } from "../shared/notifications.js";
-import { maskCNPJ, escapeHtml } from "../shared/utils.js";
+import { maskCNPJ, escapeHtml, friendlyError } from "../shared/utils.js";
 import { icon } from "../shared/icons.js";
 
 export async function renderSettingsModule() {
@@ -88,7 +88,7 @@ export async function renderSettingsModule() {
         // Notifica o shell para atualizar o rodapé com o novo nome da instituição
         document.dispatchEvent(new CustomEvent("farmac:refreshFooter"));
       } catch (err) {
-        showToast("error", "Erro ao salvar", err.message);
+        showToast("error", "Erro ao salvar", friendlyError(err));
       }
     });
 }

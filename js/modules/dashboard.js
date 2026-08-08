@@ -91,6 +91,10 @@ export async function renderDashboard() {
             ${icon("pill", "icon icon-md")}
             <span>Estoque</span>
           </a>
+          <a href="#pacientes" class="quick-action-btn quick-action-teal">
+            ${icon("patients", "icon icon-md")}
+            <span>Dias Cirúrgicos</span>
+          </a>
           <a href="#validades" class="quick-action-btn quick-action-yellow">
             ${icon("expiry", "icon icon-md")}
             <span>Validades</span>
@@ -98,10 +102,6 @@ export async function renderDashboard() {
           <a href="#relatorios" class="quick-action-btn quick-action-purple">
             ${icon("reports", "icon icon-md")}
             <span>Relatórios</span>
-          </a>
-          <a href="#conformidade" class="quick-action-btn quick-action-teal">
-            ${icon("compliance", "icon icon-md")}
-            <span>Conformidade</span>
           </a>
         </div>
       </div>

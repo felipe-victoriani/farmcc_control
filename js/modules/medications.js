@@ -15,7 +15,7 @@ import {
 } from "../core/db.js";
 import { auditLog } from "../core/db.js";
 import { getSessionProfile } from "../core/auth.js";
-import { showToast } from "../shared/notifications.js";
+import { showToast, confirmDialog } from "../shared/notifications.js";
 import { icon } from "../shared/icons.js";
 import {
   formatDate,
@@ -35,6 +35,7 @@ import {
   formatNumber,
   debounce,
   generateId,
+  friendlyError,
 } from "../shared/utils.js";
 
 // ============================================================
@@ -69,12 +70,18 @@ function buildMedicationsHTML() {
       "ENFERMEIRO_RT",
     ].includes(profile.role);
 
+  const isControlledView = initialRouteFilter === "controlado";
+
   return `
   <section class="module-section" id="section-medications">
     <div class="section-header">
       <div>
-        <h1 class="section-title">Estoque de Medicamentos</h1>
-        <p class="section-subtitle">Controle conforme Portaria SVS/MS n° 344/98</p>
+        <h1 class="section-title">${isControlledView ? "Medicamentos Controlados" : "Estoque de Medicamentos"}</h1>
+        <p class="section-subtitle">${
+          isControlledView
+            ? "Mesma base do Estoque, filtrada para as Listas A1–C3 da Portaria 344/98"
+            : "Controle conforme Portaria SVS/MS n° 344/98"
+        }</p>
       </div>
       <div class="section-actions">
         <button class="btn btn-secondary btn-sm" id="btn-recalc-stock" title="Recalcular estoque baseado nas movimentações">
@@ -262,6 +269,7 @@ function buildMedicationsHTML() {
               <label class="form-label" for="med-qtd-atual">Qtd. Atual <span class="required">*</span></label>
               <input type="number" id="med-qtd-atual" name="qtdAtual" class="form-input" required min="0" step="1" value="0">
               <span class="form-error" id="err-med-qtd-atual"></span>
+              <span class="form-hint text-sm text-muted">Use este campo só para ajuste inicial. Lote e validade são controlados por Movimentações &gt; Entrada.</span>
             </div>
             <div class="form-group">
               <label class="form-label" for="med-qtd-minima">Qtd. Mínima (alerta)</label>
@@ -394,6 +402,22 @@ function renderMedsTable(meds) {
   const tbody = document.getElementById("meds-tbody");
   if (!tbody) return;
 
+  const profile = getSessionProfile();
+  const canEdit =
+    profile &&
+    ["ADMIN", "FARMACEUTICO_RT", "FARMACEUTICO"].includes(profile.role);
+  const canDelete =
+    profile && ["ADMIN", "FARMACEUTICO_RT"].includes(profile.role);
+  const canCreate =
+    profile &&
+    [
+      "ADMIN",
+      "FARMACEUTICO_RT",
+      "FARMACEUTICO",
+      "TECNICO_FARMACIA",
+      "ENFERMEIRO_RT",
+    ].includes(profile.role);
+
   if (!meds.length) {
     tbody.innerHTML = `
       <tr><td colspan="8">
@@ -401,17 +425,20 @@ function renderMedsTable(meds) {
           ${icon("inbox", "icon icon-xl")}
           <p class="empty-state-title">Nenhum medicamento encontrado</p>
           <p class="empty-state-desc">Ajuste os filtros ou cadastre um novo medicamento.</p>
+          ${
+            canCreate
+              ? `<button type="button" class="btn btn-primary btn-sm empty-state-action" id="btn-new-med-empty">
+            ${icon("plus", "icon icon-sm")} Novo Medicamento
+          </button>`
+              : ""
+          }
         </div>
       </td></tr>`;
+    document
+      .getElementById("btn-new-med-empty")
+      ?.addEventListener("click", openNewMedicationModal);
     return;
   }
-
-  const profile = getSessionProfile();
-  const canEdit =
-    profile &&
-    ["ADMIN", "FARMACEUTICO_RT", "FARMACEUTICO"].includes(profile.role);
-  const canDelete =
-    profile && ["ADMIN", "FARMACEUTICO_RT"].includes(profile.role);
 
   tbody.innerHTML = meds
     .map((med) => {
@@ -575,9 +602,7 @@ export async function openEditMedicationModal(medId) {
     "categoria",
     "concentracao",
     "apresentacao",
-    "lote",
     "fabricante",
-    "validade",
     "unidade",
     "qtdAtual",
     "qtdMinima",
@@ -667,7 +692,7 @@ async function saveMedication(formData, editId = null) {
 
     document.getElementById("modal-medication").close();
   } catch (err) {
-    showToast("error", "Erro ao salvar", err.message);
+    showToast("error", "Erro ao salvar", friendlyError(err));
     btn.disabled = false;
     btn.innerHTML = `${icon("check", "icon icon-sm")} Salvar Medicamento`;
     return;
@@ -724,9 +749,18 @@ export async function deleteMedication(medId) {
   const med = await dbRead("medications", medId);
   if (!med) return;
 
-  const confirmado = window.confirm(
-    `Confirma a exclusão de "${med.nome}"?\n\nATENÇÃO: Esta ação é irreversível. Todo o histórico ficará órfão.`,
-  );
+  const confirmado = await confirmDialog({
+    title: "Excluir medicamento",
+    message:
+      "Esta ação é irreversível. Todo o histórico de movimentações ficará órfão (sem vínculo a um cadastro ativo).",
+    details: [
+      { label: "Medicamento", value: med.nome },
+      { label: "Lista", value: med.lista || "—" },
+      { label: "Estoque atual", value: formatNumber(med.qtdAtual ?? 0) },
+    ],
+    confirmLabel: "Excluir definitivamente",
+    danger: true,
+  });
   if (!confirmado) return;
 
   try {
@@ -749,7 +783,7 @@ export async function deleteMedication(medId) {
       estoque: document.getElementById("filter-estoque")?.value || "",
     });
   } catch (err) {
-    showToast("error", "Erro ao excluir", err.message);
+    showToast("error", "Erro ao excluir", friendlyError(err));
   }
 }
 
@@ -825,58 +859,71 @@ export async function recalcularEstoqueGeral() {
   const profile = getSessionProfile();
   if (!profile) return;
 
-  const confirmacao = confirm(
-    "Recalcular o estoque de TODOS os medicamentos baseado nas movimentações registradas?\n\n" +
-      "Isso irá:\n" +
-      "✓ Somar todas as entradas e devoluções\n" +
-      "✓ Subtrair todas as saídas, perdas e descartes\n" +
-      "✓ Atualizar o estoque atual (qtdAtual)\n\n" +
-      "NOTA: Medicamentos com lotes diferentes serão somados em um único estoque total.\n\n" +
-      "Deseja continuar?",
-  );
+  // Buscar todos os medicamentos e movimentações e calcular o diff ANTES de
+  // pedir confirmação, para que o usuário veja exatamente o que vai mudar.
+  const [rawMeds, rawMovs] = await Promise.all([
+    dbReadAll("medications"),
+    dbReadAll("movements"),
+  ]);
 
+  const meds = snapshotToArray(rawMeds);
+  const movs = snapshotToArray(rawMovs).filter((m) => m.status !== "cancelado");
+
+  const mudancas = [];
+  for (const med of meds) {
+    const movsDoMed = movs.filter((m) => m.medicamentoId === med.id);
+    const entradas = movsDoMed
+      .filter((m) => ["entrada", "devolucao"].includes(m.tipo))
+      .reduce((soma, m) => soma + (Number(m.quantidade) || 0), 0);
+    const saidas = movsDoMed
+      .filter((m) => ["saida", "perda", "descarte"].includes(m.tipo))
+      .reduce((soma, m) => soma + (Number(m.quantidade) || 0), 0);
+    const estoqueCalculado = entradas - saidas;
+
+    if (estoqueCalculado !== (med.qtdAtual || 0)) {
+      mudancas.push({ med, de: med.qtdAtual || 0, para: estoqueCalculado });
+    }
+  }
+
+  if (mudancas.length === 0) {
+    showToast(
+      "info",
+      "Nada a recalcular",
+      "O estoque já está de acordo com as movimentações registradas.",
+    );
+    return;
+  }
+
+  const detailsPreview = mudancas.slice(0, 12).map((c) => ({
+    label: c.med.nome,
+    value: `${formatNumber(c.de)} → ${formatNumber(c.para)}`,
+  }));
+  if (mudancas.length > 12) {
+    detailsPreview.push({
+      label: "...",
+      value: `e mais ${mudancas.length - 12} item(ns)`,
+    });
+  }
+
+  const confirmacao = await confirmDialog({
+    title: "Recalcular estoque",
+    message: `${mudancas.length} medicamento(s) terão o estoque atual ajustado com base na soma de entradas/devoluções menos saídas/perdas/descartes. Medicamentos com lotes diferentes são somados em um único total (a rastreabilidade por lote continua no histórico de movimentações).`,
+    details: detailsPreview,
+    confirmLabel: `Aplicar em ${mudancas.length} medicamento(s)`,
+  });
   if (!confirmacao) return;
 
   try {
     showToast("info", "Recalculando estoque...", "Processando movimentações");
 
-    // Buscar todos os medicamentos e movimentações
-    const [rawMeds, rawMovs] = await Promise.all([
-      dbReadAll("medications"),
-      dbReadAll("movements"),
-    ]);
-
-    const meds = snapshotToArray(rawMeds);
-    const movs = snapshotToArray(rawMovs).filter(
-      (m) => m.status !== "cancelado",
-    );
-
     let contadorAtualizado = 0;
-
-    for (const med of meds) {
-      // Filtrar movimentações deste medicamento
-      const movsDoMed = movs.filter((m) => m.medicamentoId === med.id);
-
-      // Calcular estoque baseado nas movimentações
-      const entradas = movsDoMed
-        .filter((m) => ["entrada", "devolucao"].includes(m.tipo))
-        .reduce((soma, m) => soma + (Number(m.quantidade) || 0), 0);
-
-      const saidas = movsDoMed
-        .filter((m) => ["saida", "perda", "descarte"].includes(m.tipo))
-        .reduce((soma, m) => soma + (Number(m.quantidade) || 0), 0);
-
-      const estoqueCalculado = entradas - saidas;
-
-      // Se for diferente do estoque atual, atualizar
-      if (estoqueCalculado !== (med.qtdAtual || 0)) {
-        await dbUpdate("medications", med.id, {
-          qtdAtual: estoqueCalculado,
-          atualizadoEm: new Date().toISOString(),
-          atualizadoPor: profile.uid,
-        });
-        contadorAtualizado++;
-      }
+    for (const { med, para } of mudancas) {
+      await dbUpdate("medications", med.id, {
+        qtdAtual: para,
+        atualizadoEm: new Date().toISOString(),
+        atualizadoPor: profile.uid,
+      });
+      contadorAtualizado++;
     }
 
     await auditLog({

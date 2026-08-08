@@ -120,12 +120,51 @@
 
 .btn-icon {
   padding: 8px;
+  min-width: 40px;
+  min-height: 40px;
   border-radius: var(--radius-md);
 }
 
 .btn-icon svg {
   width: 18px;
   height: 18px;
+}
+
+/* Modal de confirmação/prompt (confirmDialog/promptDialog) */
+.confirm-details {
+  margin-top: var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.confirm-details-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: 8px 12px;
+  font-size: var(--text-sm);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.confirm-details-row:last-child {
+  border-bottom: none;
+}
+
+.confirm-details-row:nth-child(even) {
+  background: var(--color-surface-2);
+}
+
+.confirm-details-label {
+  color: var(--color-text-3);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.confirm-details-value {
+  color: var(--color-text);
+  text-align: right;
+  word-break: break-word;
 }
 
 .btn-link {
@@ -2407,8 +2446,14 @@ dialog.modal-xl {
 .action-group {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   justify-content: flex-end;
+}
+
+/* Afasta ações destrutivas das demais para reduzir toque acidental (tablet/plantão) */
+.action-group .btn-danger-ghost,
+.action-group .btn-ghost-danger {
+  margin-left: 4px;
 }
 
 /* Mini barra de progresso de estoque */

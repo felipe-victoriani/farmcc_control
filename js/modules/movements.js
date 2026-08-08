@@ -12,7 +12,11 @@ import {
   ajustarEstoque,
 } from "../core/db.js";
 import { getSessionProfile } from "../core/auth.js";
-import { showToast } from "../shared/notifications.js";
+import {
+  showToast,
+  confirmDialog,
+  promptDialog,
+} from "../shared/notifications.js";
 import { icon } from "../shared/icons.js";
 import {
   snapshotToArray,
@@ -29,6 +33,7 @@ import {
   textoDiasRestantes,
   diasRestantes,
   escapeHtml,
+  friendlyError,
 } from "../shared/utils.js";
 
 // ============================================================
@@ -175,7 +180,7 @@ function buildMovementsHTML() {
               <label class="form-label" for="mov-data-hora">Data e Hora da Movimentação <span class="required">*</span></label>
               <input type="datetime-local" id="mov-data-hora" name="dataHora" class="form-input" required>
               <span class="form-error" id="err-mov-data"></span>
-              <span class="form-hint text-sm text-muted">Informe quando a movimentação realmente ocorreu.</span>
+              <span class="form-hint text-sm text-muted">Informe quando a movimentação realmente ocorreu. Não pode ser futura nem anterior a 30 dias.</span>
             </div>
 
             <div class="form-group">
@@ -373,14 +378,32 @@ export async function openMovementModal(type = "saida", medId = null) {
   // Gerar lote automático
   document.getElementById("mov-protocolo").value = generateProtocol();
 
-  // Definir data/hora atual como padrão
+  // Definir data/hora atual como padrão, e limitar o intervalo aceito no
+  // próprio input (não deixa o usuário nem escolher algo fora da janela
+  // permitida — em vez de só descobrir o limite depois de tentar salvar).
   const now = new Date();
-  const localDateTime = new Date(
-    now.getTime() - now.getTimezoneOffset() * 60000,
-  )
-    .toISOString()
-    .slice(0, 16);
-  document.getElementById("mov-data-hora").value = localDateTime;
+  const toLocalInputValue = (date) =>
+    new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+      .toISOString()
+      .slice(0, 16);
+  const localDateTime = toLocalInputValue(now);
+  const dataHoraInput = document.getElementById("mov-data-hora");
+  dataHoraInput.value = localDateTime;
+  dataHoraInput.max = localDateTime;
+  dataHoraInput.min = toLocalInputValue(
+    new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
+  );
+
+  // Texto da confirmação de responsabilidade proporcional ao risco: saída de
+  // controlado mantém a linguagem forte; operações rotineiras usam uma
+  // confirmação mais leve para reduzir fadiga sem abrir mão do registro.
+  const confirmaLabel = document.querySelector('label[for="mov-confirma"]');
+  if (confirmaLabel) {
+    confirmaLabel.textContent =
+      type === "saida"
+        ? "Confirmo que as informações acima são corretas e assumo responsabilidade legal pelo registro, incluindo eventuais medicamentos controlados."
+        : "Confirmo que as informações acima estão corretas.";
+  }
 
   // Carregar cache de medicações e adicionar primeira linha
   await loadMedicationsCache();
@@ -933,15 +956,19 @@ async function saveMovement(formData) {
         }
       }
 
-      // Alerta visual persistente
+      // Alerta visual persistente — modal do próprio app em vez de alert()
+      // nativo, que pode ser silenciado permanentemente pelo navegador
+      // ("não perguntar novamente") e some da tela de forma irreversível.
       setTimeout(() => {
-        alert(
-          `⚠️ ATENÇÃO — NOTIFICAÇÃO OBRIGATÓRIA\n\n` +
-            `Foram registrados DESVIO/ROUBO de ${medications.length} medicamento(s) controlado(s).\n\n` +
-            `Conforme Port. 344/98 Art. 56, estes eventos DEVEM ser comunicados à\n` +
-            `Vigilância Sanitária local (VISA) e ao CRF imediatamente.\n\n` +
-            `Este alerta foi registrado na trilha de auditoria.`,
-        );
+        confirmDialog({
+          title: "Atenção — notificação obrigatória",
+          message:
+            `Foram registrados DESVIO/ROUBO de ${medications.length} medicamento(s) controlado(s). ` +
+            "Conforme Port. 344/98 Art. 56, estes eventos DEVEM ser comunicados à Vigilância Sanitária local (VISA) e ao CRF imediatamente. Este alerta foi registrado na trilha de auditoria.",
+          confirmLabel: "Entendido",
+          cancelLabel: null,
+          danger: true,
+        });
       }, 500);
     }
 
@@ -952,7 +979,7 @@ async function saveMovement(formData) {
       `Protocolo: ${baseProtocol}${causa === "desvio" ? " — NOTIFICAR VISA!" : ""}`,
     );
   } catch (err) {
-    showToast("error", "Erro ao registrar", err.message);
+    showToast("error", "Erro ao registrar", friendlyError(err));
     btn.disabled = false;
     btn.innerHTML = `${icon("check", "icon icon-sm")} Registrar`;
     return;
@@ -1014,11 +1041,16 @@ function applyMovFilters(filters = {}) {
     return true;
   });
 
-  renderMovsTable(filtered);
+  movsFilteredCache = filtered;
+  renderMovsTable(filtered, 1);
 }
 
-function renderMovsTable(movs) {
+const MOVS_PAGE_SIZE = 50;
+let movsFilteredCache = [];
+
+function renderMovsTable(movs, page = 1) {
   const tbody = document.getElementById("movs-tbody");
+  const paginationEl = document.getElementById("movs-pagination");
   if (!tbody) return;
 
   if (!movs.length) {
@@ -1029,8 +1061,14 @@ function renderMovsTable(movs) {
         <p class="empty-state-desc">Ajuste os filtros ou registre uma movimentação.</p>
       </div>
     </td></tr>`;
+    if (paginationEl) paginationEl.innerHTML = "";
     return;
   }
+
+  const totalPages = Math.max(1, Math.ceil(movs.length / MOVS_PAGE_SIZE));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const start = (currentPage - 1) * MOVS_PAGE_SIZE;
+  const pageItems = movs.slice(start, start + MOVS_PAGE_SIZE);
 
   const tipoClass = {
     saida: "badge-danger",
@@ -1044,8 +1082,7 @@ function renderMovsTable(movs) {
   const canCancel =
     profile && ["ADMIN", "FARMACEUTICO_RT"].includes(profile.role);
 
-  tbody.innerHTML = movs
-    .slice(0, 100)
+  tbody.innerHTML = pageItems
     .map((mov) => {
       const cancelado = mov.status === "cancelado";
       return `
@@ -1092,6 +1129,39 @@ function renderMovsTable(movs) {
     </tr>`;
     })
     .join("");
+
+  renderMovsPagination(movs.length, currentPage, totalPages);
+}
+
+function renderMovsPagination(total, page, totalPages) {
+  const el = document.getElementById("movs-pagination");
+  if (!el) return;
+
+  if (totalPages <= 1) {
+    el.innerHTML = "";
+    return;
+  }
+
+  const start = (page - 1) * MOVS_PAGE_SIZE + 1;
+  const end = Math.min(page * MOVS_PAGE_SIZE, total);
+
+  el.innerHTML = `
+    <div class="pagination">
+      <span class="pagination-info">Mostrando ${start}–${end} de ${total}</span>
+      <div class="pagination-controls">
+        <button type="button" class="page-btn" data-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>‹ Anterior</button>
+        <span class="page-btn active" style="cursor:default">${page} / ${totalPages}</span>
+        <button type="button" class="page-btn" data-page="${page + 1}" ${page >= totalPages ? "disabled" : ""}>Próxima ›</button>
+      </div>
+    </div>
+  `;
+
+  el.querySelectorAll("[data-page]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const p = parseInt(btn.dataset.page, 10);
+      renderMovsTable(movsFilteredCache, p);
+    });
+  });
 }
 
 function renderKPIsMovements(movs) {
@@ -1240,20 +1310,36 @@ function setupMovementsListeners() {
       if (!btn) return;
       const movId = btn.dataset.id;
       const profile = getSessionProfile();
-      const motivo = prompt(
-        "CANCELAMENTO DE MOVIMENTAÇÃO\n\nInforme o motivo do cancelamento (obrigatório para auditoria):",
-      );
-      if (!motivo?.trim()) {
+
+      // Buscar a movimentação ANTES de pedir o motivo, para mostrar ao
+      // usuário exatamente qual registro está prestes a cancelar — numa
+      // tabela densa, é fácil clicar na linha errada sem essa confirmação.
+      const mov = await dbRead("movements", movId);
+      if (!mov) {
+        showToast("error", "Erro", "Movimentação não encontrada.");
+        return;
+      }
+
+      const motivo = await promptDialog({
+        title: "Cancelar movimentação",
+        message:
+          "O estoque será revertido e o registro original permanece na trilha de auditoria, marcado como cancelado.",
+        details: [
+          { label: "Protocolo", value: mov.protocolo || "—" },
+          { label: "Tipo", value: labelTipoMovimento(mov.tipo) },
+          { label: "Medicamento", value: mov.medicamentoNome || "—" },
+          { label: "Quantidade", value: formatNumber(mov.quantidade) },
+          { label: "Data/Hora", value: formatDateTime(mov.dataHora) },
+        ],
+        label: "Motivo do cancelamento (obrigatório para auditoria)",
+        confirmLabel: "Cancelar movimentação",
+        danger: true,
+      });
+      if (!motivo) {
         showToast("warning", "Cancelamento abortado.", "Motivo não informado.");
         return;
       }
       try {
-        // Buscar a movimentação para reverter o estoque
-        const mov = await dbRead("movements", movId);
-        if (!mov) {
-          throw new Error("Movimentação não encontrada.");
-        }
-
         // Reverter o estoque conforme o tipo de movimentação
         const tiposDecremento = ["saida", "perda", "descarte"];
         const tiposIncremento = ["entrada", "devolucao"];
@@ -1305,7 +1391,7 @@ function setupMovementsListeners() {
           );
         }
       } catch (err) {
-        showToast("error", "Erro ao cancelar", err.message);
+        showToast("error", "Erro ao cancelar", friendlyError(err));
         return;
       }
 

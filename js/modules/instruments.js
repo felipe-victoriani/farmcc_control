@@ -15,7 +15,11 @@ import {
   auditLog,
 } from "../core/db.js";
 import { getSessionProfile } from "../core/auth.js";
-import { showToast } from "../shared/notifications.js";
+import {
+  showToast,
+  confirmDialog,
+  promptDialog,
+} from "../shared/notifications.js";
 import { icon } from "../shared/icons.js";
 import {
   snapshotToArray,
@@ -25,6 +29,7 @@ import {
   escapeHtml,
   exportCSV,
   debounce,
+  friendlyError,
 } from "../shared/utils.js";
 
 // ============================================================
@@ -398,7 +403,7 @@ async function saveInstrument(formData, editId = null) {
     document.getElementById("modal-instrument").close();
     await loadInstruments();
   } catch (err) {
-    showToast("error", "Erro ao salvar", err.message);
+    showToast("error", "Erro ao salvar", friendlyError(err));
   } finally {
     btn.disabled = false;
   }
@@ -409,10 +414,20 @@ async function addSterilizationCycle(instId) {
   const inst = await dbRead("instruments", instId);
   if (!inst) return;
 
-  const metodo = prompt(
-    `Registrar novo ciclo de esterilização para:\n${inst.nome} (${inst.numeroSerie})\n\nMétodo utilizado:`,
-  );
-  if (!metodo?.trim()) return;
+  const metodo = await promptDialog({
+    title: "Registrar ciclo de esterilização",
+    details: [
+      { label: "Instrumental", value: inst.nome },
+      { label: "Nº Série", value: inst.numeroSerie },
+      {
+        label: "Ciclo",
+        value: `${(inst.ciclosRealizados || 0) + 1} de ${inst.ciclosMaximos || 999}`,
+      },
+    ],
+    label: "Método utilizado",
+    confirmLabel: "Registrar ciclo",
+  });
+  if (!metodo) return;
 
   const novosCiclos = (inst.ciclosRealizados || 0) + 1;
   const atingiuLimite = novosCiclos >= (inst.ciclosMaximos || 999);
@@ -564,22 +579,32 @@ async function openInstrumentModal(id) {
 async function deleteInstrument(id) {
   const inst = await dbRead("instruments", id);
   if (!inst) return;
-  if (
-    !confirm(
-      `Excluir "${inst.nome}" (${inst.numeroSerie})?\n\nATENÇÃO: O histórico de ciclos será perdido.`,
-    )
-  )
-    return;
-  const profile = getSessionProfile();
-  await dbDelete("instruments", id);
-  await auditLog({
-    uid: profile?.uid || "",
-    userName: profile?.nome,
-    action: "DELETE_INSTRUMENT",
-    module: "instruments",
-    recordId: id,
-    details: `Instrumental excluído: ${inst.nome}`,
+  const confirmado = await confirmDialog({
+    title: "Excluir instrumental",
+    message: "O histórico de ciclos de esterilização será perdido.",
+    details: [
+      { label: "Instrumental", value: inst.nome },
+      { label: "Nº Série", value: inst.numeroSerie },
+      { label: "Ciclos realizados", value: inst.ciclosRealizados || 0 },
+    ],
+    confirmLabel: "Excluir definitivamente",
+    danger: true,
   });
-  showToast("success", "Instrumental excluído.");
-  await loadInstruments();
+  if (!confirmado) return;
+  const profile = getSessionProfile();
+  try {
+    await dbDelete("instruments", id);
+    await auditLog({
+      uid: profile?.uid || "",
+      userName: profile?.nome,
+      action: "DELETE_INSTRUMENT",
+      module: "instruments",
+      recordId: id,
+      details: `Instrumental excluído: ${inst.nome}`,
+    });
+    showToast("success", "Instrumental excluído.");
+    await loadInstruments();
+  } catch (err) {
+    showToast("error", "Erro ao excluir", friendlyError(err));
+  }
 }

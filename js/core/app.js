@@ -16,6 +16,8 @@ import {
   showAlertsModal,
   updateAlertBadges,
   showToast,
+  getCriticalAlerts,
+  confirmDialog,
 } from "../shared/notifications.js";
 import { icon } from "../shared/icons.js";
 import { formatDate, escapeHtml } from "../shared/utils.js";
@@ -40,7 +42,10 @@ import { formatDate, escapeHtml } from "../shared/utils.js";
   try {
     const alerts = await checkAllAlerts();
     updateAlertBadges(alerts.total);
-    if (alerts.total > 0) showAlertsModal(alerts);
+    // Só interrompe o login com um modal quando há algo realmente crítico/urgente —
+    // alertas de baixa severidade ficam disponíveis sob demanda (sino no header)
+    // para não gerar fadiga de alerta em quem loga várias vezes por plantão.
+    if (getCriticalAlerts(alerts).length > 0) showAlertsModal(alerts);
   } catch {
     /* silencioso */
   }
@@ -71,6 +76,13 @@ import { formatDate, escapeHtml } from "../shared/utils.js";
 
 async function routeTo(route) {
   dbUnlistenAll();
+  // Fecha qualquer <dialog> nativo ainda aberto antes de trocar de módulo.
+  // Como a navegação troca #app-main via innerHTML, um modal aberto (ex.:
+  // "Novo Medicamento") seria removido do DOM sem passar por close() —
+  // isso pode deixar o documento preso no estado inert do modal (sem
+  // scroll, mesmo depois do conteúdo antigo ter sumido). Também cobre
+  // modais fora de #app-main, como o de alertas críticos.
+  document.querySelectorAll("dialog[open]").forEach((d) => d.close());
   setActiveNav(route);
   updateBreadcrumb(route);
 
@@ -457,10 +469,26 @@ async function renderFooter() {
   if (!footer) return;
   try {
     const s = (await dbRead("settings", "main").catch(() => ({}))) || {};
+
+    // Todos os dados institucionais cadastrados em Configurações — antes só
+    // nome e RT/CRF apareciam aqui, e endereço/CNPJ/CNES/ANVISA não tinham
+    // nenhum lugar visível no sistema além do próprio formulário de edição.
+    const leftParts = [
+      escapeHtml(s.institutionName || "FarmaCC Pro"),
+      s.address ? escapeHtml(s.address) : null,
+      s.cnpj ? `CNPJ: ${escapeHtml(s.cnpj)}` : null,
+      s.cnes ? `CNES: ${escapeHtml(s.cnes)}` : null,
+      s.anvisaNumber ? `ANVISA: ${escapeHtml(s.anvisaNumber)}` : null,
+    ].filter(Boolean);
+
     footer.innerHTML = `
-      <span>${escapeHtml(s.institutionName || "FarmaCC Pro")}</span>
-      ${s.responsavelTecnico ? `<span>RT: ${escapeHtml(s.responsavelTecnico)} — CRF: ${escapeHtml(s.crfNumero || "—")}</span>` : ""}
-      <span>v1.0 · Port. 344/98 · RDC 222/2018</span>
+      <div class="footer-left" title="${escapeHtml(leftParts.join(" · "))}">
+        ${leftParts.map((p) => `<span>${p}</span>`).join('<span class="footer-sep">·</span>')}
+      </div>
+      <div class="footer-right">
+        ${s.responsavelTecnico ? `<span>RT: ${escapeHtml(s.responsavelTecnico)} — CRF: ${escapeHtml(s.crfNumero || "—")}</span><span class="footer-sep">·</span>` : ""}
+        <span>v1.0 · Port. 344/98 · RDC 222/2018</span>
+      </div>
     `;
   } catch {
     /* silencioso */
@@ -487,25 +515,94 @@ function initOfflineDetection() {
 }
 
 // ============================================================
-// INATIVIDADE (15 min)
+// INATIVIDADE (15 min, com aviso de 1 min antes de encerrar)
 // ============================================================
 
 let inactivityTimer;
+let inactivityWarningTimer;
+let inactivityWarningModal;
 const INACTIVITY_MS = 15 * 60 * 1000;
+const INACTIVITY_WARNING_MS = 60 * 1000; // avisa 1 min antes de encerrar
 
 function initInactivityTimer() {
-  const reset = () => {
+  const clearAll = () => {
     clearTimeout(inactivityTimer);
-    inactivityTimer = setTimeout(async () => {
-      showToast("warning", "Sessão encerrada por inatividade.");
-      await logoutUser();
-    }, INACTIVITY_MS);
+    clearTimeout(inactivityWarningTimer);
+  };
+
+  const reset = () => {
+    // Enquanto o aviso estiver aberto, qualquer atividade deve ser tratada
+    // pelo próprio botão "Continuar conectado" do modal, não silenciosamente.
+    if (inactivityWarningModal) return;
+    clearAll();
+    inactivityWarningTimer = setTimeout(
+      showInactivityWarning,
+      INACTIVITY_MS - INACTIVITY_WARNING_MS,
+    );
   };
 
   ["mousemove", "keydown", "click", "scroll", "touchstart"].forEach((ev) =>
     document.addEventListener(ev, reset, { passive: true }),
   );
   reset();
+}
+
+function showInactivityWarning() {
+  document.getElementById("inactivity-warning-modal")?.remove();
+
+  const modal = document.createElement("dialog");
+  modal.id = "inactivity-warning-modal";
+  modal.className = "modal";
+  modal.setAttribute("aria-modal", "true");
+  modal.setAttribute("aria-labelledby", "inactivity-warning-title");
+  modal.innerHTML = `
+    <div class="modal-content modal-sm">
+      <div class="modal-header" style="background:var(--color-warning-dim)">
+        <h2 class="modal-title" id="inactivity-warning-title" style="color:var(--color-warning)">Sessão prestes a expirar</h2>
+      </div>
+      <div class="modal-body">
+        <p>Por inatividade, sua sessão será encerrada em <strong id="inactivity-countdown">60</strong> segundos.</p>
+        <p class="text-sm text-muted mt-2">Se você estiver preenchendo um formulário, salve antes que o tempo acabe — o conteúdo não preenchido será perdido.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" id="btn-continue-session">Continuar conectado</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.showModal();
+  inactivityWarningModal = modal;
+
+  let secondsLeft = INACTIVITY_WARNING_MS / 1000;
+  const countdownEl = modal.querySelector("#inactivity-countdown");
+  const countdownInterval = setInterval(() => {
+    secondsLeft--;
+    if (countdownEl) countdownEl.textContent = String(Math.max(secondsLeft, 0));
+    if (secondsLeft <= 0) clearInterval(countdownInterval);
+  }, 1000);
+
+  const finalTimeout = setTimeout(async () => {
+    clearInterval(countdownInterval);
+    modal.close();
+    modal.remove();
+    inactivityWarningModal = null;
+    showToast("warning", "Sessão encerrada por inatividade.");
+    await logoutUser();
+  }, INACTIVITY_WARNING_MS);
+
+  modal
+    .querySelector("#btn-continue-session")
+    ?.addEventListener("click", () => {
+      clearInterval(countdownInterval);
+      clearTimeout(finalTimeout);
+      modal.close();
+      modal.remove();
+      inactivityWarningModal = null;
+      inactivityWarningTimer = setTimeout(
+        showInactivityWarning,
+        INACTIVITY_MS - INACTIVITY_WARNING_MS,
+      );
+    });
 }
 
 // ============================================================

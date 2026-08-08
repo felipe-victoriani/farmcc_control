@@ -12,7 +12,12 @@
     "sidebar header"
     "sidebar main"
     "sidebar footer";
-  min-height: 100vh;
+  /* Altura travada (não min-height): com min-height, a linha "1fr" do
+     grid não fica limitada de verdade — em páginas curtas o navegador
+     ora rola o documento, ora não rola nada, cortando os últimos campos
+     sem aviso. Com altura fixa em 100vh, #app-main (overflow-y:auto +
+     min-height:0 abaixo) vira a única área de rolagem, sempre. */
+  height: 100vh;
   background: var(--color-bg);
 }
 
@@ -281,6 +286,37 @@
 /* Desabilita tooltip nos itens (hover-expand já mostra os nomes) */
 .nav-item[data-tooltip]::after {
   display: none !important;
+}
+
+/* Dispositivos sem hover (tablets/touch): o hover-to-expand nunca dispara e
+   o tooltip está desabilitado acima, deixando a sidebar só com ícones sem
+   nenhuma forma de identificar os itens. Nesses dispositivos, mantemos os
+   rótulos sempre visíveis independente do estado "colapsado". */
+@media (hover: none) and (pointer: coarse) {
+  .app-layout.sidebar-collapsed .sidebar {
+    width: var(--sidebar-width);
+  }
+
+  .app-layout.sidebar-collapsed .sidebar-logo-text,
+  .app-layout.sidebar-collapsed .nav-label,
+  .app-layout.sidebar-collapsed .nav-badge,
+  .app-layout.sidebar-collapsed .user-info,
+  .app-layout.sidebar-collapsed .user-logout-btn {
+    opacity: 1;
+    width: auto;
+    overflow: visible;
+  }
+
+  .app-layout.sidebar-collapsed .nav-item {
+    padding: 10px 12px;
+    justify-content: flex-start;
+    gap: 12px;
+  }
+
+  .app-layout.sidebar-collapsed .sidebar-user {
+    justify-content: flex-start;
+    padding: 14px 16px;
+  }
 }
 
 /* Nav divider */
@@ -564,16 +600,17 @@
 }
 
 .footer-left {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
   overflow: hidden;
   flex: 1;
   min-width: 0;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: default;
 }
 
 .footer-sep {
   color: var(--color-border-hi);
+  margin: 0 6px;
 }
 
 .footer-right {
@@ -1115,7 +1152,9 @@
     font-size: 10px;
   }
 
-  .app-footer span:not(:first-child) {
+  /* Em telas pequenas, mantém só o resumo institucional (nome/endereço/
+     documentos) e esconde RT/CRF/versão para não competir por espaço. */
+  .app-footer .footer-right {
     display: none;
   }
 

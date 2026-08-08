@@ -11,13 +11,14 @@ import {
   auditLog,
 } from "../core/db.js";
 import { getSessionProfile } from "../core/auth.js";
-import { showToast } from "../shared/notifications.js";
+import { showToast, confirmDialog } from "../shared/notifications.js";
 import { icon } from "../shared/icons.js";
 import {
   snapshotToArray,
   sortBy,
   searchMatch,
   formatDate,
+  friendlyError,
   formatDateTime,
   exportCSV,
   debounce,
@@ -440,7 +441,7 @@ async function saveResidue(formData, editId = null) {
     showToast("success", "Descarte registrado!", `MTR: ${data.numeroMTR}`);
     await loadResidues();
   } catch (err) {
-    showToast("error", "Erro ao salvar", err.message);
+    showToast("error", "Erro ao salvar", friendlyError(err));
   } finally {
     btn.disabled = false;
   }
@@ -456,13 +457,27 @@ async function deleteResidue(id) {
     );
     return;
   }
-  if (!window.confirm("Confirma a exclusão deste registro?")) return;
+  const residue = residuesCache.find((r) => r.id === id);
+  const confirmado = await confirmDialog({
+    title: "Excluir registro de descarte",
+    message: "Esta ação é irreversível.",
+    details: residue
+      ? [
+          { label: "Descrição", value: residue.descricao || "—" },
+          { label: "MTR", value: residue.numeroMTR || "—" },
+          { label: "Data", value: formatDate(residue.dataDescarte) },
+        ]
+      : null,
+    confirmLabel: "Excluir definitivamente",
+    danger: true,
+  });
+  if (!confirmado) return;
   try {
     await dbDelete("residues", id);
     showToast("success", "Registro excluído.");
     await loadResidues();
   } catch (err) {
-    showToast("error", "Erro", err.message);
+    showToast("error", "Erro", friendlyError(err));
   }
 }
 

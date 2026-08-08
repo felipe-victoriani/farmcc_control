@@ -12,7 +12,7 @@ import {
   auditLog,
 } from "../core/db.js";
 import { getSessionProfile } from "../core/auth.js";
-import { showToast } from "../shared/notifications.js";
+import { showToast, confirmDialog } from "../shared/notifications.js";
 import { icon } from "../shared/icons.js";
 import {
   snapshotToArray,
@@ -20,6 +20,7 @@ import {
   formatDateTime,
   generateId,
   escapeHtml,
+  friendlyError,
 } from "../shared/utils.js";
 
 // ============================================================
@@ -252,7 +253,7 @@ export async function renderUsersModule() {
         document.getElementById("modal-user")?.close();
         await renderUsersModule();
       } catch (err) {
-        showToast("error", "Erro ao salvar", err.message);
+        showToast("error", "Erro ao salvar", friendlyError(err));
       } finally {
         saveBtn.disabled = false;
       }
@@ -334,12 +335,19 @@ async function deleteUser(uid, nome, users) {
     showToast("error", "Sem permissão", "Apenas ADMIN pode excluir usuários.");
     return;
   }
-  if (
-    !confirm(
-      `Excluir permanentemente o usuário "${nome}"?\n\nEsta ação não pode ser desfeita.`,
-    )
-  )
-    return;
+  const target = users.find((u) => u.id === uid);
+  const confirmado = await confirmDialog({
+    title: "Excluir usuário",
+    message: "Esta ação não pode ser desfeita.",
+    details: [
+      { label: "Nome", value: nome },
+      { label: "Perfil", value: target?.role || "—" },
+      { label: "E-mail", value: target?.email || "—" },
+    ],
+    confirmLabel: "Excluir permanentemente",
+    danger: true,
+  });
+  if (!confirmado) return;
   try {
     await dbDelete("users", uid);
     await auditLog({
@@ -353,7 +361,7 @@ async function deleteUser(uid, nome, users) {
     showToast("success", "Usuário excluído.");
     await renderUsersModule();
   } catch (err) {
-    showToast("error", "Erro ao excluir", err.message);
+    showToast("error", "Erro ao excluir", friendlyError(err));
   }
 }
 
@@ -383,6 +391,6 @@ async function toggleUser(uid, currentAtivo, users) {
     );
     await renderUsersModule();
   } catch (err) {
-    showToast("error", "Erro", err.message);
+    showToast("error", "Erro", friendlyError(err));
   }
 }

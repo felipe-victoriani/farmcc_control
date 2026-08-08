@@ -13,7 +13,7 @@ import {
   auditLog,
 } from "../core/db.js";
 import { getSessionProfile } from "../core/auth.js";
-import { showToast } from "../shared/notifications.js";
+import { showToast, confirmDialog } from "../shared/notifications.js";
 import { icon } from "../shared/icons.js";
 import {
   snapshotToArray,
@@ -26,6 +26,7 @@ import {
   formatNumber,
   escapeHtml,
   badgeClassLista,
+  friendlyError,
 } from "../shared/utils.js";
 
 // ============================================================
@@ -181,6 +182,9 @@ function buildSurgicalDaysHTML() {
     <div class="side-panel-header">
       <h3 class="side-panel-title">📋 Detalhes do Dia Cirúrgico</h3>
       <div class="side-panel-actions">
+        <button class="btn btn-primary btn-sm" id="btn-print-day-prontuario" title="Imprimir prontuário do dia">
+          ${icon("print", "icon icon-sm")} Imprimir
+        </button>
         <button class="btn btn-icon" id="close-day-panel" aria-label="Fechar">
           ${icon("xClose", "icon icon-sm")}
         </button>
@@ -434,6 +438,9 @@ function setupSurgicalDaysListeners() {
   document
     .getElementById("day-panel-overlay")
     ?.addEventListener("click", closeDayPanel);
+  document
+    .getElementById("btn-print-day-prontuario")
+    ?.addEventListener("click", printSurgicalDayProntuario);
 }
 
 // ============================================================
@@ -549,6 +556,9 @@ async function saveDay(formData, editId = null) {
     valid = false;
   }
 
+  const totalRows = document.querySelectorAll(
+    "#patients-list-tbody tr",
+  ).length;
   const patients = collectPatients();
   if (patients.length === 0) {
     setErr("err-day-patients", "Adicione pelo menos 1 paciente.");
@@ -556,6 +566,15 @@ async function saveDay(formData, editId = null) {
   }
 
   if (!valid) return;
+
+  const linhasIgnoradas = totalRows - patients.length;
+  if (linhasIgnoradas > 0) {
+    showToast(
+      "warning",
+      `${linhasIgnoradas} linha(s) em branco ignorada(s)`,
+      "Preencha o nome do paciente antes de salvar, ou remova a linha.",
+    );
+  }
 
   const btn = document.getElementById("btn-save-day");
   btn.disabled = true;
@@ -604,7 +623,7 @@ async function saveDay(formData, editId = null) {
 
     document.getElementById("modal-day").close();
   } catch (err) {
-    showToast("error", "Erro ao salvar", err.message);
+    showToast("error", "Erro ao salvar", friendlyError(err));
     btn.disabled = false;
     return;
   } finally {
@@ -629,7 +648,21 @@ async function deleteDay(id) {
     );
     return;
   }
-  if (!window.confirm("Confirma a exclusão deste dia cirúrgico?")) return;
+  const day = daysCache.find((d) => d.id === id);
+  const confirmado = await confirmDialog({
+    title: "Excluir dia cirúrgico",
+    message:
+      "As movimentações de medicamentos já registradas para este dia não serão apagadas, mas perderão o vínculo com a lista de pacientes.",
+    details: day
+      ? [
+          { label: "Data", value: formatDate(day.data) },
+          { label: "Pacientes", value: day.pacientes?.length || 0 },
+        ]
+      : null,
+    confirmLabel: "Excluir definitivamente",
+    danger: true,
+  });
+  if (!confirmado) return;
 
   try {
     await dbDelete("surgical_days", id);
@@ -648,7 +681,7 @@ async function deleteDay(id) {
       console.warn("Erro ao registrar auditoria:", auditErr);
     }
   } catch (err) {
-    showToast("error", "Erro ao excluir", err.message);
+    showToast("error", "Erro ao excluir", friendlyError(err));
     return;
   }
 
@@ -663,6 +696,9 @@ async function deleteDay(id) {
 // PAINEL DE DETALHES
 // ============================================================
 
+/** Cache do dia/movimentações atualmente exibidos no painel — usado pela impressão. */
+let currentDayDetail = null;
+
 async function openDayDetailPanel(dayId) {
   const panel = document.getElementById("day-detail-panel");
   const overlay = document.getElementById("day-panel-overlay");
@@ -672,6 +708,7 @@ async function openDayDetailPanel(dayId) {
   content.innerHTML = '<div class="skeleton skeleton-text mb-2"></div>';
   panel.classList.add("open");
   overlay?.classList.remove("hidden");
+  currentDayDetail = null;
 
   try {
     const day = await dbRead("surgical_days", dayId);
@@ -687,6 +724,8 @@ async function openDayDetailPanel(dayId) {
       .filter((m) => m.diaCirurgicoId === dayId)
       .filter((m) => m.status !== "cancelado")
       .sort((a, b) => (b.dataHora || 0) - (a.dataHora || 0));
+
+    currentDayDetail = { day, movs };
 
     content.innerHTML = `
       <div class="detail-section">
@@ -792,6 +831,181 @@ function closeDayPanel() {
   const overlay = document.getElementById("day-panel-overlay");
   panel?.classList.remove("open");
   overlay?.classList.add("hidden");
+}
+
+// ============================================================
+// PRONTUÁRIO IMPRIMÍVEL DO DIA CIRÚRGICO
+// ============================================================
+
+async function printSurgicalDayProntuario() {
+  if (!currentDayDetail) {
+    showToast(
+      "warning",
+      "Nada para imprimir",
+      "Abra um dia cirúrgico primeiro.",
+    );
+    return;
+  }
+  const { day, movs } = currentDayDetail;
+  const settings = (await dbRead("settings", "main").catch(() => null)) || {};
+
+  const totalItens = movs.reduce((s, m) => s + (Number(m.quantidade) || 0), 0);
+  const controlados = movs.filter(
+    (m) => m.medicamentoLista && !["normal", ""].includes(m.medicamentoLista),
+  );
+  const medicos = [
+    ...new Set(movs.map((m) => m.medicoResponsavel).filter(Boolean)),
+  ];
+
+  const pacientesRows = (day.pacientes || [])
+    .map(
+      (p, idx) => `
+      <tr>
+        <td>${idx + 1}</td>
+        <td>${escapeHtml(p.nome)}</td>
+        <td>${escapeHtml(p.prontuario || "—")}</td>
+      </tr>`,
+    )
+    .join("");
+
+  const medsRows = movs.length
+    ? movs
+        .map(
+          (m) => `
+      <tr ${m.medicamentoLista && !["normal", ""].includes(m.medicamentoLista) ? 'class="row-warning"' : ""}>
+        <td>${formatDateTime(m.dataHora)}</td>
+        <td>${escapeHtml(m.medicamentoNome || "—")}</td>
+        <td>${m.medicamentoLista && !["normal", ""].includes(m.medicamentoLista) ? `<span class="badge badge-danger">${escapeHtml(m.medicamentoLista)}</span>` : "—"}</td>
+        <td style="text-align:right">${formatNumber(m.quantidade)}</td>
+        <td>${escapeHtml(m.sncr || "—")}</td>
+        <td>${escapeHtml(m.registradoPorNome || "—")}</td>
+      </tr>`,
+        )
+        .join("")
+    : `<tr><td colspan="6" style="text-align:center;color:#666">Nenhum medicamento registrado para este dia.</td></tr>`;
+
+  const printWindow = window.open("", "_blank");
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+      <meta charset="UTF-8">
+      <title>Prontuário do Dia Cirúrgico — Impressão</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Arial', sans-serif; font-size: 12px; line-height: 1.5; color: #333; padding: 20mm; }
+        .prontuario-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 2px solid #2563eb; margin-bottom: 24px; }
+        .prontuario-institution-name { font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 4px; }
+        .prontuario-institution-info { font-size: 10px; color: #666; }
+        .prontuario-date { text-align: right; font-size: 10px; }
+        .prontuario-title { text-align: center; margin-bottom: 24px; }
+        .prontuario-title h3 { font-size: 16px; font-weight: 700; color: #1e40af; margin-bottom: 8px; }
+        .prontuario-number { font-size: 12px; color: #666; font-weight: 600; }
+        .prontuario-section { margin-bottom: 20px; break-inside: avoid; }
+        .prontuario-section-header { background: #f1f5f9; padding: 8px 12px; border-left: 4px solid #2563eb; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+        .prontuario-section-header h4 { font-size: 13px; font-weight: 700; color: #1e40af; }
+        .prontuario-section-meta { font-size: 10px; color: #666; }
+        table.prontuario-table { width: 100%; border-collapse: collapse; font-size: 10px; }
+        table.prontuario-table th { background: #f8fafc; padding: 8px; text-align: left; font-weight: 700; border: 1px solid #e2e8f0; }
+        table.prontuario-table td { padding: 6px 8px; border: 1px solid #e2e8f0; }
+        table.prontuario-table .row-warning { background: #fef3c7; }
+        .prontuario-obs { padding: 12px; background: #f8fafc; border-left: 4px solid #94a3b8; font-size: 11px; }
+        .prontuario-alert { display: flex; gap: 12px; padding: 12px; background: #fef3c7; border: 1px solid #fbbf24; border-radius: 4px; margin: 20px 0; font-size: 11px; }
+        .prontuario-footer { display: flex; justify-content: space-around; gap: 20px; margin-top: 40px; break-inside: avoid; }
+        .prontuario-footer-section { flex: 1; text-align: center; }
+        .prontuario-signature-line { border-top: 1px solid #000; margin-top: 40px; }
+        .prontuario-legal { text-align: center; font-size: 9px; color: #999; margin-top: 20px; padding-top: 12px; border-top: 1px solid #e2e8f0; }
+        .badge { display: inline-block; padding: 2px 6px; font-size: 9px; font-weight: 600; border-radius: 3px; }
+        .badge-danger { background: #fee2e2; color: #991b1b; }
+        @media print { body { padding: 0; } .prontuario-section { page-break-inside: avoid; } }
+      </style>
+    </head>
+    <body>
+      <div class="prontuario-header">
+        <div>
+          <div class="prontuario-institution-name">${escapeHtml(settings.nomeInstituicao || settings.institutionName || "Centro Cirúrgico")}</div>
+          <div class="prontuario-institution-info">
+            ${settings.cnpj ? `CNPJ: ${escapeHtml(settings.cnpj)} • ` : ""}${settings.endereco ? escapeHtml(settings.endereco) : ""}
+          </div>
+        </div>
+        <div class="prontuario-date">
+          <div>Emissão</div>
+          <div><strong>${formatDate(Date.now())} ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</strong></div>
+        </div>
+      </div>
+
+      <div class="prontuario-title">
+        <h3>PRONTUÁRIO DE MEDICAMENTOS — DIA CIRÚRGICO</h3>
+        <div class="prontuario-number">${formatDate(day.data)}</div>
+      </div>
+
+      <div class="prontuario-section">
+        <div class="prontuario-section-header"><h4>Pacientes (${day.pacientes?.length || 0})</h4></div>
+        <table class="prontuario-table">
+          <thead><tr><th>#</th><th>Nome</th><th>Prontuário</th></tr></thead>
+          <tbody>${pacientesRows || '<tr><td colspan="3">Nenhum paciente cadastrado.</td></tr>'}</tbody>
+        </table>
+      </div>
+
+      ${
+        medicos.length
+          ? `<div class="prontuario-section">
+        <div class="prontuario-section-header"><h4>Médico(s) Responsável(is)</h4></div>
+        <div class="prontuario-obs">${medicos.map((m) => escapeHtml(m)).join(", ")}</div>
+      </div>`
+          : ""
+      }
+
+      <div class="prontuario-section">
+        <div class="prontuario-section-header">
+          <h4>Medicamentos Utilizados</h4>
+          <div class="prontuario-section-meta">${movs.length} registro(s) • ${formatNumber(totalItens)} itens${controlados.length ? ` • ${controlados.length} controlado(s)` : ""}</div>
+        </div>
+        <table class="prontuario-table">
+          <thead><tr><th>Data/Hora</th><th>Medicamento</th><th>Lista</th><th>Qtd.</th><th>SNCR</th><th>Registrado por</th></tr></thead>
+          <tbody>${medsRows}</tbody>
+        </table>
+      </div>
+
+      ${
+        day.observacoes
+          ? `<div class="prontuario-section">
+        <div class="prontuario-section-header"><h4>Observações</h4></div>
+        <div class="prontuario-obs">${escapeHtml(day.observacoes)}</div>
+      </div>`
+          : ""
+      }
+
+      ${
+        controlados.length > 0
+          ? `<div class="prontuario-alert">
+        <strong>⚠ Atenção:</strong>&nbsp; este dia cirúrgico utilizou ${controlados.length} medicamento(s) controlado(s) sujeito(s) à Portaria SVS/MS nº 344/98. O registro deve ser mantido por no mínimo 2 anos para fins de fiscalização e auditoria.
+      </div>`
+          : ""
+      }
+
+      <div class="prontuario-footer">
+        <div class="prontuario-footer-section">
+          <div class="prontuario-signature-line"></div>
+          <div>Farmacêutico Responsável<br><span style="color:#666">CRF</span></div>
+        </div>
+        <div class="prontuario-footer-section">
+          <div class="prontuario-signature-line"></div>
+          <div>${escapeHtml(settings.responsavelTecnico || "Responsável Técnico")}</div>
+        </div>
+      </div>
+
+      <div class="prontuario-legal">
+        Documento gerado pelo FarmaCC Pro • ${formatDateTime(Date.now())} • Em conformidade com Port. 344/98, RDC 873/2024 e RDC 204/2017
+      </div>
+
+      <script>
+        window.onload = function() { window.print(); };
+      </script>
+    </body>
+    </html>
+  `);
+  printWindow.document.close();
 }
 
 // ============================================================

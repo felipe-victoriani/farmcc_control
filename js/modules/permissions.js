@@ -10,9 +10,9 @@
 
 import { dbRead, dbSet, auditLog } from "../core/db.js";
 import { getSessionProfile } from "../core/auth.js";
-import { showToast } from "../shared/notifications.js";
+import { showToast, confirmDialog } from "../shared/notifications.js";
 import { icon } from "../shared/icons.js";
-import { escapeHtml } from "../shared/utils.js";
+import { escapeHtml, friendlyError } from "../shared/utils.js";
 
 // ============================================================
 // DEFINIÇÕES
@@ -262,7 +262,7 @@ function setupPermissionsListeners(access) {
           "Aplicadas imediatamente a todos os usuários.",
         );
       } catch (err) {
-        showToast("error", "Erro ao salvar", err.message);
+        showToast("error", "Erro ao salvar", friendlyError(err));
       }
     });
 
@@ -270,12 +270,13 @@ function setupPermissionsListeners(access) {
   document
     .getElementById("btn-reset-permissions")
     ?.addEventListener("click", async () => {
-      if (
-        !confirm(
-          "Restaurar todas as permissões para os valores padrão do sistema?",
-        )
-      )
-        return;
+      const confirmado = await confirmDialog({
+        title: "Restaurar permissões padrão",
+        message:
+          "Todas as permissões por perfil serão substituídas pelos valores padrão do sistema. Clique em Salvar depois para confirmar a mudança.",
+        confirmLabel: "Restaurar padrões",
+      });
+      if (!confirmado) return;
       ROLES.forEach(({ key }) => {
         access[key] = [...(DEFAULTS[key] || [])];
       });
