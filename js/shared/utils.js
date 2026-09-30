@@ -29,13 +29,28 @@ export function formatDateTime(value) {
 }
 
 /**
+ * Converte uma string "YYYY-MM-DD" (ex.: valor de <input type="date">) em Date local,
+ * evitando que o parsing como UTC do construtor Date desloque o dia em fusos negativos (ex.: Brasil).
+ * Para outros formatos (timestamp numérico, ISO com hora, Date), delega ao construtor padrão.
+ * @param {number|string|Date} value
+ * @returns {Date}
+ */
+function parseDateLocal(value) {
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(year, month - 1, day);
+  }
+  return new Date(value);
+}
+
+/**
  * Formata um timestamp ou string ISO em DD/MM/AAAA
  * @param {number|string|Date} value
  * @returns {string}
  */
 export function formatDate(value) {
   if (!value) return "—";
-  const d = new Date(typeof value === "number" ? value : value);
+  const d = parseDateLocal(value);
   if (isNaN(d.getTime())) return "—";
   return d.toLocaleDateString("pt-BR", {
     day: "2-digit",
@@ -59,7 +74,7 @@ export function now() {
  */
 export function diasRestantes(validade) {
   if (!validade) return 9999;
-  const d = new Date(validade);
+  const d = parseDateLocal(validade);
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
   d.setHours(0, 0, 0, 0);
